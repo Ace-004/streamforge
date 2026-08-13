@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum VideoStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum RenditionStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum JobStatus {
+  QUEUED
+  PROCSSING
+  COMPLETED
+  FAILED
+}
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  role          String    @default("user")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  apiKeys       ApiKey[]
+  videos        Video[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  keyHash     String    @map("key_hash")
+  secretHash  String    @map("secret_hash")
+  createdAr   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId],references: [id])
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model Video {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  title       String 
+  status      VideoStatus @default(PENDING)
+  originalUrl String      @map("original_url")
+  duration    Float?
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  user        User        @relation(fields: [userId],references: [id])
+  renditions  VideoRendition[]
+
+  @@index([userId])
+  @@map("videos")
+}
+
+model VideoRendition {
+  id          String          @id @default(uuid())
+  videoId     String          @map("video_id")
+  resolution  String
+  hlsPath     String?         @map("hls_path")
+  status      RenditionStatus @default(QUEUED)
+
+  video       Video           @relation(fields: [videoId],references: [id])
+  job         TranscodingJob?
+
+  @@index([videoId])
+  @@map("video_renditions")
+}
+
+model TranscodingJob {
+  id          String    @id @default(uuid())
+  renditionId String    @unique @map("rendition_id")
+  status      JobStatus @default(QUEUED)
+  attempts    Int       @default(0)
+  error       String?
+  startedAt   DateTime? @map("started_at")
+  completeAt  DateTime? @map("completed_a")
+
+  rendition   VideoRendition @relation(fields: [renditionId],references: [id])
+
+  @@index([renditionId])
+  @@map("transcoding_jobs")
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String              @map("user_id")
+  type      String 
+  payload   Json
+  channel   String
+  status    NotificationStatus  @default(PENDING)
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  user      User                @relation(fields:[userId],references:[id])
+
+  @@index([userId])
+  @@map("notifications")
+}
