@@ -28,7 +28,7 @@ enum RenditionStatus {
 
 enum JobStatus {
   QUEUED
-  PROCSSING
+  PROCESSING
   COMPLETED
   FAILED
 }
@@ -57,7 +57,7 @@ model ApiKey {
   userId      String    @map("user_id")
   keyHash     String    @map("key_hash")
   secretHash  String    @map("secret_hash")
-  createdAr   DateTime  @default(now()) @map("created_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   user        User      @relation(fields: [userId],references: [id])
 
@@ -102,7 +102,7 @@ model TranscodingJob {
   attempts    Int       @default(0)
   error       String?
   startedAt   DateTime? @map("started_at")
-  completeAt  DateTime? @map("completed_a")
+  completedAt  DateTime? @map("completed_at")
 
   rendition   VideoRendition @relation(fields: [renditionId],references: [id])
 
