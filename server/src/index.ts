@@ -5,7 +5,6 @@ import cors from 'cors';
 import { errorHandler } from "./middleware/error.middleware.js";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
-import rateLimit from "express-rate-limit";
 
 
 console.log('authRoutes:', authRoutes);
@@ -18,14 +17,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 10, // 10 attempts per window per IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many attempts, try again later" },
-});
 
 app.use('/auth', authRoutes);
 
