@@ -1,8 +1,9 @@
 import { S3Client } from "@aws-sdk/client-s3";
+// import 'dotenv/config' from 'express';
 
-const R2_ACCOUNT_ID= process.env.R2_ACCOUONT_ID;
+const R2_ACCOUNT_ID= process.env.R2_ACCOUNT_ID;
 if(!R2_ACCOUNT_ID){
-  throw new Error('R2_ACCOUONT_ID is not mentioned in .env')
+  throw new Error('R2_ACCOUNT_ID is not mentioned in .env')
 }
 
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
