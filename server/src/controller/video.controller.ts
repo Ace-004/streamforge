@@ -3,7 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import type { Response } from "express";
 import { AppError } from "../utils/error.js";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2 } from "../lib/r2.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
@@ -66,6 +66,25 @@ export const completeUpload = asyncHandler(
 
     if (video.status !== "PENDING") {
       throw new AppError(400, `video is already ${video.status}`);
+    }
+
+    const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
+    if (!R2_BUCKET_NAME) {
+      throw new Error("R2_BUCKET_NAME is not defined in .env");
+    }
+
+    try {
+      await r2.send(
+        new HeadObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: video.originalUrl,
+        }),
+      );
+    } catch {
+      throw new AppError(
+        400,
+        "File not found in storage — upload may have failed",
+      );
     }
 
     const updated = await prisma.video.update({
