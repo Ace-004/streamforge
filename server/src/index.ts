@@ -4,8 +4,9 @@ import express from "express";
 import cors from 'cors';
 import { errorHandler } from "./middleware/error.middleware.js";
 import cookieParser from "cookie-parser";
-import authRoutes from "./routes/auth.routes.js";
 
+import authRoutes from "./routes/auth.routes.js";
+import videoRoutes from "./routes/video.routes.js";
 
 console.log('authRoutes:', authRoutes);
 const app = express();
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use('/auth', authRoutes);
+app.use('/videos',videoRoutes);
 
 
 app.use("/health", async (req, res) => {
