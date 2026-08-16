@@ -6,6 +6,6 @@ const router = Router();
 
 router.post("/presign", requireAuth, getPresignedUrl);
 
-router.post(':id/complete',requireAuth,completeUpload);
+router.post('/:id/complete',requireAuth,completeUpload);
 
 export default router;
