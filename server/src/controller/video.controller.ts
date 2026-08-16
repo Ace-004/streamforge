@@ -18,13 +18,13 @@ export const getPresignedUrl = asyncHandler(async(req:AuthenticatedRequest,res:R
   const userId = req.user!.userId;
   const key = `uploads/${userId}/${randomUUID()}`;
 
-  const BUCKET_NAME = process.env.BUCKET_NAME;  
-  if(!BUCKET_NAME){
+  const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;  
+  if(!R2_BUCKET_NAME){
     throw new Error('BUCKET_NAME is not defined in .env');
   }
 
   const command = new PutObjectCommand({
-    Bucket:BUCKET_NAME,
+    Bucket:R2_BUCKET_NAME,
     Key: key,
     ContentType:contentType,
   });
@@ -40,5 +40,5 @@ export const getPresignedUrl = asyncHandler(async(req:AuthenticatedRequest,res:R
     }
   });
 
-  res.status(201).json({uploadUrl,vioeoId: video.id});
+  res.status(201).json({uploadUrl,videoId: video.id});
 })
