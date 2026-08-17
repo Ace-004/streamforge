@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { spawn } from "child_process";
 import { connection } from "./lib/redis.js";
 import {prisma} from './lib/prisma.js';
+import { downloadFromR2 } from "./lib/downloadFromR2.js";
 
 type TranscodeJobData = {
   videoId: string,
@@ -12,7 +13,11 @@ type TranscodeJobData = {
 
 const worker = new Worker<TranscodeJobData>("transcode",async(job)=>{
   const {videoId,renditionId,resolution, inputPath}= job.data;
-  const outputPath = `./output-${renditionId}-${resolution}.mp4`;
+  const jobTmpdDir = `./tmp/${renditionId}`;
+  const localInputPath = `${jobTmpdDir}/input.mp4`
+  const outputPath = `${jobTmpdDir}/output-${renditionId}-${resolution}.mp4`;
+
+  await downloadFromR2(inputPath,localInputPath);
 
   await prisma.videoRendition.update({
     where:{
