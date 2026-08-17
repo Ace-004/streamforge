@@ -30,7 +30,7 @@ const worker = new Worker<TranscodeJobData>("transcode",async(job)=>{
 
   await new Promise<void>((resolve,reject)=>{
     const ffmpeg = spawn("ffmpeg",[
-      "-i", inputPath,
+      "-i", localInputPath,
         "-vf", `scale=-2:${resolution}`,
         "-c:v", "libx264",
         "-c:a", "aac",
