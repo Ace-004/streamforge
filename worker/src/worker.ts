@@ -3,6 +3,7 @@ import { spawn } from "child_process";
 import { connection } from "./lib/redis.js";
 import { prisma } from "./lib/prisma.js";
 import { downloadFromR2 } from "./lib/downloadFromR2.js";
+import { mkdir } from "fs/promises";
 
 type TranscodeJobData = {
   videoId: string;
@@ -15,9 +16,13 @@ const worker = new Worker<TranscodeJobData>(
   "transcode",
   async (job) => {
     const { videoId, renditionId, resolution, inputPath } = job.data;
+
     const jobTmpdDir = `./tmp/${renditionId}`;
     const localInputPath = `${jobTmpdDir}/input.mp4`;
-    const outputPath = `${jobTmpdDir}/output-${renditionId}-${resolution}.mp4`;
+    // const outputPath = `${jobTmpdDir}/output-${renditionId}-${resolution}.mp4`;
+
+    const renditionDir = `${jobTmpdDir}/${resolution}p`;
+    const playlistPath = `${renditionDir}/playlist.m3u8`;
 
     await downloadFromR2(inputPath, localInputPath);
 
@@ -30,6 +35,8 @@ const worker = new Worker<TranscodeJobData>(
       },
     });
 
+    await mkdir(renditionDir, { recursive: true });
+
     await new Promise<void>((resolve, reject) => {
       const ffmpeg = spawn("ffmpeg", [
         "-i",
@@ -40,7 +47,15 @@ const worker = new Worker<TranscodeJobData>(
         "libx264",
         "-c:a",
         "aac",
-        outputPath,
+        "-f",
+        "hls",
+        "-hls_time",
+        "10",
+        "-hls_playlist_type",
+        "vod",
+        "-hls_segment_filename",
+        `${renditionDir}/segment_%03d.ts`,
+        playlistPath,
       ]);
 
       ffmpeg.stderr.on("data", (data) => {
@@ -76,7 +91,7 @@ const worker = new Worker<TranscodeJobData>(
     //   });
     // }
 
-    return { outputPath };
+    return { renditionDir, playlistPath };
   },
   { connection },
 );
