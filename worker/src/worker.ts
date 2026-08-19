@@ -4,6 +4,7 @@ import { connection } from "./lib/redis.js";
 import { prisma } from "./lib/prisma.js";
 import { downloadFromR2 } from "./lib/downloadFromR2.js";
 import { mkdir } from "fs/promises";
+import { uploadFolderToR2 } from "./lib/uploadToR2.js";
 
 type TranscodeJobData = {
   videoId: string;
@@ -73,6 +74,14 @@ const worker = new Worker<TranscodeJobData>(
         id: renditionId,
       },
       data: { status: "READY" },
+    });
+
+    const r2Prefix = `processed/${videoId}/${resolution}p`;
+    await uploadFolderToR2(renditionDir,r2Prefix);
+
+    await prisma.videoRendition.update({
+      where: {id: renditionId},
+      data:{hlsPath: `${r2Prefix}/playlist.m3u8`},
     });
 
     // after marking this rendition READY:
