@@ -5,6 +5,7 @@ import { prisma } from "./lib/prisma.js";
 import { downloadFromR2 } from "./lib/downloadFromR2.js";
 import { mkdir } from "fs/promises";
 import { uploadFolderToR2 } from "./lib/uploadToR2.js";
+import { regenerateMasterPlaylist } from "./lib/masterPlaylist.js";
 
 type TranscodeJobData = {
   videoId: string;
@@ -84,21 +85,24 @@ const worker = new Worker<TranscodeJobData>(
       data:{hlsPath: `${r2Prefix}/playlist.m3u8`},
     });
 
-    // after marking this rendition READY:
-    // const allRenditions = await prisma.videoRendition.findMany({
-    //   where: { videoId },
-    // });
-    // const anyReady = allRenditions.some((r) => r.status === "READY");
-    // const allDone = allRenditions.every(
-    //   (r) => r.status === "READY" || r.status === "FAILED",
-    // );
+    await regenerateMasterPlaylist(videoId);
 
-    // if (allDone) {
-    //   await prisma.video.update({
-    //     where: { id: videoId },
-    //     data: { status: anyReady ? "READY" : "FAILED" },
-    //   });
-    // }
+
+    // after marking this rendition READY:
+    const allRenditions = await prisma.videoRendition.findMany({
+      where: { videoId },
+    });
+    const anyReady = allRenditions.some((r) => r.status === "READY");
+    const allDone = allRenditions.every(
+      (r) => r.status === "READY" || r.status === "FAILED",
+    );
+
+    if (allDone) {
+      await prisma.video.update({
+        where: { id: videoId },
+        data: { status: anyReady ? "READY" : "FAILED" },
+      });
+    }
 
     return { renditionDir, playlistPath };
   },
