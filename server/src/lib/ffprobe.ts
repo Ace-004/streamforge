@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { resolve } from "dns";
+
 export function getVideoHeight(localPath: string): Promise<number>{
   return new Promise((resolve,reject)=>{
     const ffprobe = spawn("ffprobe",[
