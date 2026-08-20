@@ -70,19 +70,19 @@ const worker = new Worker<TranscodeJobData>(
       });
     });
 
-    await prisma.videoRendition.update({
-      where: {
-        id: renditionId,
-      },
-      data: { status: "READY" },
-    });
+    // await prisma.videoRendition.update({
+    //   where: {
+    //     id: renditionId,
+    //   },
+    //   data: { status: "READY" },
+    // });
 
     const r2Prefix = `processed/${videoId}/${resolution}p`;
     await uploadFolderToR2(renditionDir,r2Prefix);
 
     await prisma.videoRendition.update({
       where: {id: renditionId},
-      data:{hlsPath: `${r2Prefix}/playlist.m3u8`},
+      data:{hlsPath: `${r2Prefix}/playlist.m3u8`,status:"READY"},
     });
 
     await regenerateMasterPlaylist(videoId);
