@@ -7,6 +7,9 @@ import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2 } from "../lib/r2.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
+import { downloadFromR2 } from "../lib/downloadFromR2.js";
+import { getVideoHeight } from "../lib/ffprobe.js";
+import { transcodeQueue } from "../lib/queue.js";
 
 export const getPresignedUrl = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
@@ -44,6 +47,8 @@ export const getPresignedUrl = asyncHandler(
     res.status(201).json({ uploadUrl, videoId: video.id });
   },
 );
+
+const ALL_RESOLUTIONS= [360,480,720,1080];
 
 export const completeUpload = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
@@ -87,11 +92,37 @@ export const completeUpload = asyncHandler(
       );
     }
 
+    // download locally just to probe resolution
+
+    const localpath=`./tmp/${video.id}/probe-input.mp4`;
+    await downloadFromR2(video.originalUrl,localpath);
+    const sourceHeight= await getVideoHeight(localpath);
+
+    const applicableResolutions =ALL_RESOLUTIONS.filter((r)=> r<= sourceHeight);
+    if(applicableResolutions.length===0){
+      applicableResolutions.push(ALL_RESOLUTIONS[0] as number);
+    }
+
+    for(const resolution of applicableResolutions){
+      const rendition = await prisma.videoRendition.create({
+        data:{
+          videoId: video.id,resolution: String(resolution), status: "QUEUED",
+        }
+      });
+
+      await transcodeQueue.add("transcode",{
+        videoId:video.id,
+        renditionId: rendition.id,
+        resolution,
+        inputPath: video.originalUrl,
+      });
+    }
+
     const updated = await prisma.video.update({
       where: { id },
       data: { status: "PROCESSING" },
     });
 
-    res.status(200).json({ video: updated });
+    res.status(200).json({ video: updated , renditionQueued: applicableResolutions});
   },
 );
