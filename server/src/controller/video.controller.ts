@@ -106,12 +106,12 @@ export const completeUpload = asyncHandler(
     for(const resolution of applicableResolutions){
       const rendition = await prisma.videoRendition.create({
         data:{
-          videoId: video.id,resolution: String(resolution), status: "QUEUED",
+          videoId: video.id,resolution: String(resolution),
         }
       });
 
       await prisma.transcodingJob.create({
-        data:{renditionId:rendition.id,status:"QUEUED"},
+        data:{renditionId:rendition.id,},
       });
 
       await transcodeQueue.add("transcode",{
