@@ -110,6 +110,10 @@ export const completeUpload = asyncHandler(
         }
       });
 
+      await prisma.transcodingJob.create({
+        data:{renditionId:rendition.id,status:"QUEUED"},
+      });
+
       await transcodeQueue.add("transcode",{
         videoId:video.id,
         renditionId: rendition.id,
