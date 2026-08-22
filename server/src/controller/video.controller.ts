@@ -103,28 +103,38 @@ export const completeUpload = asyncHandler(
       applicableResolutions.push(ALL_RESOLUTIONS[0] as number);
     }
 
-    for(const resolution of applicableResolutions){
-      const rendition = await prisma.videoRendition.create({
-        data:{
-          videoId: video.id,resolution: String(resolution),
-        }
-      });
+    // all or nothing  DB writed : rendition + job creation for every resolution.
 
-      await prisma.transcodingJob.create({
-        data:{renditionId:rendition.id,},
-      });
+    const created = await prisma.$transaction(async (tx)=>{
+      const rows = [];
 
+      for( const resolution of applicableResolutions){
+        const rendition = await tx.videoRendition.create({
+          data: {videoId: video.id, resolution:String(resolution)},
+        });
+
+        await tx.transcodingJob.create({
+          data:{renditionId:rendition.id},
+        });
+        rows.push({renditionId: rendition.id,resolution});
+      }
+      return rows;
+    })
+
+    // only enqueue once every rendition/ job row is confirmed commited/
+
+    for(const {renditionId,resolution} of created){
       await transcodeQueue.add("transcode",{
         videoId:video.id,
-        renditionId: rendition.id,
+        renditionId,
         resolution,
         inputPath: video.originalUrl,
       });
     }
 
     const updated = await prisma.video.update({
-      where: { id },
-      data: { status: "PROCESSING" },
+      where:{id},
+      data:{status: "PROCESSING"},
     });
 
     res.status(200).json({ video: updated , renditionQueued: applicableResolutions});
