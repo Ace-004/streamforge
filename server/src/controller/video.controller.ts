@@ -3,7 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import type { Response } from "express";
 import { AppError } from "../utils/error.js";
-import { HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2 } from "../lib/r2.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
@@ -176,5 +176,27 @@ export const getVideoUrl = asyncHandler(async(req:AuthenticatedRequest, res: Res
     throw new AppError(403,'not authorised to view this video');
   };
 
-  res.status(200).json({video});
+  // const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
+  // if(!R2_BUCKET_NAME){
+  //   throw new Error('R2_BUCKET_NAME is not set in .env');
+  // };
+
+  const R2_PUBLIC_URL= process.env.R2_PUBLIC_URL;
+  if(!R2_PUBLIC_URL){
+    throw new Error('R2_PUBLIC_URL is not set in .env');
+  }
+
+  const playbackUrl = video.status==='READY'?`${R2_PUBLIC_URL}/processed/${video.id}/master.m3u8`: null;
+
+  // if((video.status)==='READY'){
+  //   const masterKey = `processed/${video.id}/master.m3u8`;
+  //   const command= new GetObjectCommand({
+  //     Bucket:R2_BUCKET_NAME,
+  //     Key: masterKey,
+  //   });
+
+  //   playbackUrl= await getSignedUrl(r2,command,{expiresIn:3600});
+  // }
+
+  res.status(200).json({video, playbackUrl});
 });

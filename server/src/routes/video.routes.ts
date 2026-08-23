@@ -7,7 +7,7 @@ const router = Router();
 router.post("/presign", requireAuth, getPresignedUrl);
 
 router.post('/:id/complete',requireAuth,completeUpload);
-router.post('/',requireAuth,listVideos);
-router.post('/:id',requireAuth,getVideoUrl);
+router.get('/',requireAuth,listVideos);
+router.get('/:id',requireAuth,getVideoUrl);
 
 export default router;
