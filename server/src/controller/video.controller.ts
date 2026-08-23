@@ -8,7 +8,7 @@ import { r2 } from "../lib/r2.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
 import { downloadFromR2 } from "../lib/downloadFromR2.js";
-import { getVideoHeight } from "../lib/ffprobe.js";
+import { getVideoInfo } from "../lib/ffprobe.js";
 import { transcodeQueue } from "../lib/queue.js";
 
 export const getPresignedUrl = asyncHandler(
@@ -96,7 +96,7 @@ export const completeUpload = asyncHandler(
 
     const localpath=`./tmp/${video.id}/probe-input.mp4`;
     await downloadFromR2(video.originalUrl,localpath);
-    const sourceHeight= await getVideoHeight(localpath);
+    const {height:sourceHeight, duration}= await getVideoInfo(localpath);
 
     const applicableResolutions =ALL_RESOLUTIONS.filter((r)=> r<= sourceHeight);
     if(applicableResolutions.length===0){
@@ -134,7 +134,7 @@ export const completeUpload = asyncHandler(
 
     const updated = await prisma.video.update({
       where:{id},
-      data:{status: "PROCESSING"},
+      data:{status: "PROCESSING",duration},
     });
 
     res.status(200).json({ video: updated , renditionQueued: applicableResolutions});
