@@ -140,3 +140,41 @@ export const completeUpload = asyncHandler(
     res.status(200).json({ video: updated , renditionQueued: applicableResolutions});
   },
 );
+
+
+export const listVideos = asyncHandler(async(req: AuthenticatedRequest,res : Response)=>{
+  const userId= req.user!.userId;
+
+  const videos= await prisma.video.findMany({
+    where:{userId},
+    orderBy:{
+      createdAt:"desc",
+    },
+  });
+
+  res.status(200).json({videos});
+});
+
+export const getVideoUrl = asyncHandler(async(req:AuthenticatedRequest, res: Response)=>{
+  const id = req.params.id;
+  const userId = req.user!.userId;
+
+  if(!id || typeof id !=="string"){
+    throw new AppError(400,'invalid video id');
+  };
+
+  const video = await prisma.video.findUnique({
+    where:{id},
+    include:{renditions:true},
+  });
+
+  if(!video){
+    throw new AppError(404,'video not found');
+  };
+
+  if(video.userId!==userId){
+    throw new AppError(403,'not authorised to view this video');
+  };
+
+  res.status(200).json({video});
+});
