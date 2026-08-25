@@ -10,6 +10,7 @@ import { prisma } from "../lib/prisma.js";
 import { downloadFromR2 } from "../lib/downloadFromR2.js";
 import { getVideoInfo } from "../lib/ffprobe.js";
 import { transcodeQueue } from "../lib/queue.js";
+import { rm } from "fs/promises";
 
 export const getPresignedUrl = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
@@ -97,6 +98,8 @@ export const completeUpload = asyncHandler(
     const localpath=`./tmp/${video.id}/probe-input.mp4`;
     await downloadFromR2(video.originalUrl,localpath);
     const {height:sourceHeight, duration}= await getVideoInfo(localpath);
+
+    await rm(`./tmp/${video.id}`,{recursive:true,force:true});
 
     const applicableResolutions =ALL_RESOLUTIONS.filter((r)=> r<= sourceHeight);
     if(applicableResolutions.length===0){

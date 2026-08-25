@@ -7,6 +7,7 @@ import { downloadFromR2 } from "./lib/downloadFromR2.js";
 import { uploadFolderToR2 } from "./lib/uploadToR2.js";
 import { regenerateMasterPlaylist } from "./lib/masterPlaylist.js";
 import { finalizeVideoStatusIfDone } from "./lib/finalizeVideoStatus.js";
+import { rm } from "fs/promises";
 
 type TranscodeJobData = {
   videoId: string;
@@ -24,57 +25,69 @@ const worker = new Worker<TranscodeJobData>(
     const renditionDir = `${jobTmpDir}/${resolution}p`;
     const playlistPath = `${renditionDir}/playlist.m3u8`;
 
-    await prisma.videoRendition.update({
-      where: { id: renditionId },
-      data: { status: "PROCESSING" },
-    });
-
-    await prisma.transcodingJob.update({
-      where: { renditionId },
-      data: { status: "PROCESSING", startedAt: new Date() },
-    });
-
-    await downloadFromR2(inputPath, localInputPath);
-    await mkdir(renditionDir, { recursive: true });
-
-    await new Promise<void>((resolve, reject) => {
-      const ffmpeg = spawn("ffmpeg", [
-        "-i", localInputPath,
-        "-vf", `scale=-2:${resolution}`,
-        "-c:v", "libx264",
-        "-c:a", "aac",
-        "-f", "hls",
-        "-hls_time", "10",
-        "-hls_playlist_type", "vod",
-        "-hls_segment_filename", `${renditionDir}/segment_%03d.ts`,
-        playlistPath,
-      ]);
-
-      ffmpeg.stderr.on("data", (data) => {
-        console.log(`[job ${job.id}] ${data}`);
+    try {
+      await prisma.videoRendition.update({
+        where: { id: renditionId },
+        data: { status: "PROCESSING" },
       });
 
-      ffmpeg.on("close", (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`FFmpeg exited with code ${code}`));
+      await prisma.transcodingJob.update({
+        where: { renditionId },
+        data: { status: "PROCESSING", startedAt: new Date() },
       });
-    });
 
-    const r2Prefix = `processed/${videoId}/${resolution}p`;
-    await uploadFolderToR2(renditionDir, r2Prefix);
+      await downloadFromR2(inputPath, localInputPath);
+      await mkdir(renditionDir, { recursive: true });
 
-    await prisma.videoRendition.update({
-      where: { id: renditionId },
-      data: { status: "READY", hlsPath: `${r2Prefix}/playlist.m3u8` },
-    });
+      await new Promise<void>((resolve, reject) => {
+        const ffmpeg = spawn("ffmpeg", [
+          "-i",
+          localInputPath,
+          "-vf",
+          `scale=-2:${resolution}`,
+          "-c:v",
+          "libx264",
+          "-c:a",
+          "aac",
+          "-f",
+          "hls",
+          "-hls_time",
+          "10",
+          "-hls_playlist_type",
+          "vod",
+          "-hls_segment_filename",
+          `${renditionDir}/segment_%03d.ts`,
+          playlistPath,
+        ]);
 
-    await prisma.transcodingJob.update({
-      where: { renditionId },
-      data: { status: "COMPLETED", completedAt: new Date() },
-    });
+        ffmpeg.stderr.on("data", (data) => {
+          console.log(`[job ${job.id}] ${data}`);
+        });
 
-    await regenerateMasterPlaylist(videoId);
-    await finalizeVideoStatusIfDone(videoId);
+        ffmpeg.on("close", (code) => {
+          if (code === 0) resolve();
+          else reject(new Error(`FFmpeg exited with code ${code}`));
+        });
+      });
+
+      const r2Prefix = `processed/${videoId}/${resolution}p`;
+      await uploadFolderToR2(renditionDir, r2Prefix);
+
+      await prisma.videoRendition.update({
+        where: { id: renditionId },
+        data: { status: "READY", hlsPath: `${r2Prefix}/playlist.m3u8` },
+      });
+
+      await prisma.transcodingJob.update({
+        where: { renditionId },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+
+      await regenerateMasterPlaylist(videoId);
+      await finalizeVideoStatusIfDone(videoId);
+    } finally {
+      await rm(jobTmpDir, { recursive: true, force: true });
+    }
   },
   { connection },
 );
