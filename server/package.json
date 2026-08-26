@@ -26,7 +26,8 @@
     "express-rate-limit": "^8.6.2",
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
