@@ -220,7 +220,7 @@ export const retryRenditon = asyncHandler(async(req:AuthenticatedRequest,res:Res
   if(!rendition){
     throw new AppError(404,"rendition not found");
   }
-1
+
   if(rendition.video.userId !== userId){
     throw new AppError(403,"not authorized to retry this rendition");
   }
@@ -236,7 +236,7 @@ export const retryRenditon = asyncHandler(async(req:AuthenticatedRequest,res:Res
 
   await prisma.transcodingJob.update({
     where: {renditionId:id},
-    data:{status:"QUEUED"},
+    data:{status:"QUEUED",error:null, completedAt:null},
   });
 
   await transcodeQueue.add("transcode",{
