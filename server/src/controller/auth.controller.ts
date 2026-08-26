@@ -1,20 +1,10 @@
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { AppError, ConflictError } from "../utils/error.js";
 import { prisma } from "../lib/prisma.js";
 import bcrypt from "bcrypt";
 import { signToken } from "../utils/jwt.js";
 import z from "zod";
-
-interface RegisterBody {
-  email: string;
-  password: string;
-}
-
-interface LoginBody {
-  email: string;
-  password: string;
-}
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -38,10 +28,6 @@ export const register = asyncHandler(async (req, res) => {
     throw new AppError(400, parsed.error.issues[0]?.message ?? "Invalid input");
   }
   const {email, password}= parsed.data;
-
-  if (!email || !password) {
-    throw new AppError(400, "email and password are required");
-  }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {

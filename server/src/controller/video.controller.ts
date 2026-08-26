@@ -203,3 +203,48 @@ export const getVideoUrl = asyncHandler(async(req:AuthenticatedRequest, res: Res
 
   res.status(200).json({video, playbackUrl});
 });
+
+export const retryRenditon = asyncHandler(async(req:AuthenticatedRequest,res:Response)=>{
+  const {id} = req.params;
+  const userId = req.user!.userId;
+  
+  if(!id || typeof id !=="string"){
+    throw new AppError(400,"Invalid rendition id");
+  }
+
+  const rendition = await prisma.videoRendition.findUnique({
+    where:{id},
+    include:{video:true},
+  });
+
+  if(!rendition){
+    throw new AppError(404,"rendition not found");
+  }
+1
+  if(rendition.video.userId !== userId){
+    throw new AppError(403,"not authorized to retry this rendition");
+  }
+
+  if(rendition.status !== "FAILED"){
+    throw new AppError(400,`Only FAILED renditions can be retried (current status : ${rendition.status})`);
+  }
+
+  await prisma.videoRendition.update({
+    where:{id},
+    data:{status:"QUEUED"},
+  });
+
+  await prisma.transcodingJob.update({
+    where: {renditionId:id},
+    data:{status:"QUEUED"},
+  });
+
+  await transcodeQueue.add("transcode",{
+    videoId: rendition.videoId,
+    renditionId: rendition.id,
+    resolution: Number(rendition.resolution),
+    inputPath: rendition.video.originalUrl,
+  });
+
+  res.status(200).json({message:"Retry Queued",renditionId: rendition.id});
+});
