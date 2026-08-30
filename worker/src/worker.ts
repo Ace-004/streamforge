@@ -8,6 +8,8 @@ import { uploadFolderToR2 } from "./lib/uploadToR2.js";
 import { regenerateMasterPlaylist } from "./lib/masterPlaylist.js";
 import { finalizeVideoStatusIfDone } from "./lib/finalizeVideoStatus.js";
 import { rm } from "fs/promises";
+import { publishVideoEvent } from "./lib/rabbitmq.js";
+import { timeStamp } from "console";
 
 type TranscodeJobData = {
   videoId: string;
@@ -85,6 +87,15 @@ const worker = new Worker<TranscodeJobData>(
 
       await regenerateMasterPlaylist(videoId);
       await finalizeVideoStatusIfDone(videoId);
+
+      await publishVideoEvent({
+        type: "rendition_completed",
+        videoId,
+        renditionId,
+        resolution,
+        timestamp: new Date().toISOString(),
+      });
+
     } finally {
       await rm(jobTmpDir, { recursive: true, force: true });
     }
@@ -118,6 +129,15 @@ worker.on("failed", async (job, err) => {
       completedAt: new Date(),
     },
   });
+
+  await publishVideoEvent({
+    type:"rendition_failed",
+    videoId: job.data.videoId,
+    renditionId: job.data.renditionId,
+    resolution: job.data.resolution,
+    error:err.message,
+    timeStamp:new Date().toISOString(),
+  })
 
   await finalizeVideoStatusIfDone(job.data.videoId);
 });

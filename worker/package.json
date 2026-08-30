@@ -16,11 +16,13 @@
     "@aws-sdk/client-s3": "^3.1111.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "amqplib": "^2.0.1",
     "bullmq": "^6.1.2",
     "dotenv": "^17.4.2",
     "ioredis": "^6.0.0"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.8",
     "@types/node": "^26.2.0",
     "prisma": "^7.9.1",
     "tsx": "^4.23.12",
