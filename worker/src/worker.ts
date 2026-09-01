@@ -9,7 +9,6 @@ import { regenerateMasterPlaylist } from "./lib/masterPlaylist.js";
 import { finalizeVideoStatusIfDone } from "./lib/finalizeVideoStatus.js";
 import { rm } from "fs/promises";
 import { publishVideoEvent } from "./lib/rabbitmq.js";
-import { timeStamp } from "console";
 
 type TranscodeJobData = {
   videoId: string;
@@ -136,7 +135,7 @@ worker.on("failed", async (job, err) => {
     renditionId: job.data.renditionId,
     resolution: job.data.resolution,
     error:err.message,
-    timeStamp:new Date().toISOString(),
+    timestamp:new Date().toISOString(),
   })
 
   await finalizeVideoStatusIfDone(job.data.videoId);

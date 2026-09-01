@@ -1,5 +1,5 @@
 import amqp from "amqplib";
-import { prisma } from "./lib/primsa.js";
+import { prisma } from "./lib/prisma.js";
 
 type VideoEvent = {
   type: "rendition_completed" | "rendition_failed";
