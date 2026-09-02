@@ -25,11 +25,6 @@ if (!FRONTEND_URL) {
   throw new Error("FRONTEND_URL is not set in .env");
 }
 
-const SMTP_USER = process.env.SMTP_USER;
-if (!SMTP_USER) {
-  throw new Error("SMTP_USER is not set in .env");
-}
-
 export async function sendVideoSummaryEmail({
   to,
   videoId,
@@ -54,7 +49,7 @@ export async function sendVideoSummaryEmail({
     : "";
 
   await transporter.sendMail({
-    from: `"StreamForge" <${SMTP_USER}>`,
+    from: `"StreamForge" <${USER}>`,
     to,
     subject,
     html: `${successLine}${failLine}<p><a href="${videoUrl}">View video</a></p>`,

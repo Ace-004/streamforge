@@ -117,7 +117,7 @@ async function maybeSendSummaryEmail(
     await sendVideoSummaryEmail({ to: userEmail, videoId, ready, failed });
     await prisma.notification.update({
       where: {
-        id: notification.userId,
+        id: notification.id,
       },
       data: { status: "SENT" },
     });
@@ -125,7 +125,7 @@ async function maybeSendSummaryEmail(
   } catch (error) {
     await prisma.notification.update({
       where: {
-        id: notification.userId,
+        id: notification.id,
       },
       data: { status: "FAILED" },
     });
