@@ -11,30 +11,63 @@ type VideoEvent = {
   timestamp: string;
 };
 
+const MAX_RETRY_DELAY_MS= 30000;
+
+function delay(ms:number){
+  return new Promise(resolve=> setTimeout(resolve,ms))
+}
+
 export async function startConsumer() {
   const RABBITMQ_URL = process.env.RABBITMQ_URL;
   if (!RABBITMQ_URL) {
     throw new Error("RABBITMQ_URL is not set in .env");
   }
 
-  const connection = await amqp.connect(RABBITMQ_URL);
-  const channel = await connection.createChannel();
-  await channel.assertQueue("video-events", { durable: true });
+  let attempt = 0;
 
-  console.log("Notification service listening for video events...");
-
-  channel.consume("video-events", async (msg) => {
-    if (!msg) return;
-
+  const connect = async () => {
     try {
-      const event: VideoEvent = JSON.parse(msg.content.toString());
-      await handleEvent(event);
-      channel.ack(msg);
-    } catch (error) {
-      console.error("Failed to process event:", error);
-      channel.nack(msg, false, false);
+      const connection = await amqp.connect(RABBITMQ_URL);
+      const channel = await connection.createChannel();
+      await channel.assertQueue("video-events", { durable: true });
+
+      attempt = 0; // reset backoff after a clean connect
+      console.log("Notification service listening for video events...");
+
+      channel.consume("video-events", async (msg) => {
+        if (!msg) return;
+        try {
+          const event: VideoEvent = JSON.parse(msg.content.toString());
+          await handleEvent(event);
+          channel.ack(msg);
+        } catch (error) {
+          console.error("Failed to process event:", error);
+          channel.nack(msg, false, false);
+        }
+      });
+
+      connection.on("error", (err) => {
+        console.error("RabbitMQ connection error:", err.message);
+      });
+
+      connection.on("close", () => {
+        console.warn("RabbitMQ connection closed. Reconnecting...");
+        scheduleReconnect();
+      });
+    } catch (err) {
+      console.error(`RabbitMQ connect attempt failed: ${(err as Error).message}`);
+      scheduleReconnect();
     }
-  });
+  };
+
+  const scheduleReconnect = () => {
+    attempt++;
+    const backoff = Math.min(1000 * 2 ** attempt, MAX_RETRY_DELAY_MS);
+    console.log(`Retrying RabbitMQ connection in ${backoff}ms (attempt ${attempt})`);
+    setTimeout(connect, backoff);
+  };
+
+  await connect();
 }
 
 async function handleEvent(event: VideoEvent) {
