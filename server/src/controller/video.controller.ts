@@ -49,7 +49,7 @@ export const getPresignedUrl = asyncHandler(
   },
 );
 
-const ALL_RESOLUTIONS= [360,480,720,1080];
+const ALL_RESOLUTIONS = [360, 480, 720, 1080];
 
 export const completeUpload = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
@@ -95,40 +95,46 @@ export const completeUpload = asyncHandler(
 
     // download locally just to probe resolution
 
-    const localpath=`./tmp/${video.id}/probe-input.mp4`;
-    await downloadFromR2(video.originalUrl,localpath);
-    const {height:sourceHeight, duration}= await getVideoInfo(localpath);
+    const localpath = `./tmp/${video.id}/probe-input.mp4`;
+    let sourceHeight: number;
+    let duration: number;
+    try {
+      await downloadFromR2(video.originalUrl, localpath);
+      ({ height: sourceHeight, duration } = await getVideoInfo(localpath));
+    } finally {
+      await rm(`./tmp/${video.id}`, { recursive: true, force: true });
+    }
 
-    await rm(`./tmp/${video.id}`,{recursive:true,force:true});
-
-    const applicableResolutions =ALL_RESOLUTIONS.filter((r)=> r<= sourceHeight);
-    if(applicableResolutions.length===0){
+    const applicableResolutions = ALL_RESOLUTIONS.filter(
+      (r) => r <= sourceHeight,
+    );
+    if (applicableResolutions.length === 0) {
       applicableResolutions.push(ALL_RESOLUTIONS[0] as number);
     }
 
     // all or nothing  DB writed : rendition + job creation for every resolution.
 
-    const created = await prisma.$transaction(async (tx)=>{
+    const created = await prisma.$transaction(async (tx) => {
       const rows = [];
 
-      for( const resolution of applicableResolutions){
+      for (const resolution of applicableResolutions) {
         const rendition = await tx.videoRendition.create({
-          data: {videoId: video.id, resolution:String(resolution)},
+          data: { videoId: video.id, resolution: String(resolution) },
         });
 
         await tx.transcodingJob.create({
-          data:{renditionId:rendition.id},
+          data: { renditionId: rendition.id },
         });
-        rows.push({renditionId: rendition.id,resolution});
+        rows.push({ renditionId: rendition.id, resolution });
       }
       return rows;
-    })
+    });
 
     // only enqueue once every rendition/ job row is confirmed commited/
 
-    for(const {renditionId,resolution} of created){
-      await transcodeQueue.add("transcode",{
-        videoId:video.id,
+    for (const { renditionId, resolution } of created) {
+      await transcodeQueue.add("transcode", {
+        videoId: video.id,
         renditionId,
         resolution,
         inputPath: video.originalUrl,
@@ -136,100 +142,115 @@ export const completeUpload = asyncHandler(
     }
 
     const updated = await prisma.video.update({
-      where:{id},
-      data:{status: "PROCESSING",duration},
+      where: { id },
+      data: { status: "PROCESSING", duration },
     });
 
-    res.status(200).json({ video: updated , renditionQueued: applicableResolutions});
+    res
+      .status(200)
+      .json({ video: updated, renditionQueued: applicableResolutions });
   },
 );
 
+export const listVideos = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.userId;
 
-export const listVideos = asyncHandler(async(req: AuthenticatedRequest,res : Response)=>{
-  const userId= req.user!.userId;
+    const videos = await prisma.video.findMany({
+      where: { userId },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
 
-  const videos= await prisma.video.findMany({
-    where:{userId},
-    orderBy:{
-      createdAt:"desc",
-    },
-  });
+    res.status(200).json({ videos });
+  },
+);
 
-  res.status(200).json({videos});
-});
+export const getVideoUrl = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const id = req.params.id;
+    const userId = req.user!.userId;
 
-export const getVideoUrl = asyncHandler(async(req:AuthenticatedRequest, res: Response)=>{
-  const id = req.params.id;
-  const userId = req.user!.userId;
+    if (!id || typeof id !== "string") {
+      throw new AppError(400, "invalid video id");
+    }
 
-  if(!id || typeof id !=="string"){
-    throw new AppError(400,'invalid video id');
-  };
+    const video = await prisma.video.findUnique({
+      where: { id },
+      include: { renditions: true },
+    });
 
-  const video = await prisma.video.findUnique({
-    where:{id},
-    include:{renditions:true},
-  });
+    if (!video) {
+      throw new AppError(404, "video not found");
+    }
 
-  if(!video){
-    throw new AppError(404,'video not found');
-  };
+    if (video.userId !== userId) {
+      throw new AppError(403, "not authorised to view this video");
+    }
 
-  if(video.userId!==userId){
-    throw new AppError(403,'not authorised to view this video');
-  };
+    const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL;
+    if (!R2_PUBLIC_URL) {
+      throw new Error("R2_PUBLIC_URL is not set in .env");
+    }
 
-  const R2_PUBLIC_URL= process.env.R2_PUBLIC_URL;
-  if(!R2_PUBLIC_URL){
-    throw new Error('R2_PUBLIC_URL is not set in .env');
-  }
+    const playbackUrl =
+      video.status === "READY"
+        ? `${R2_PUBLIC_URL}/processed/${video.id}/master.m3u8`
+        : null;
 
-  const playbackUrl = video.status==='READY'?`${R2_PUBLIC_URL}/processed/${video.id}/master.m3u8`: null;
+    res.status(200).json({ video, playbackUrl });
+  },
+);
 
-  res.status(200).json({video, playbackUrl});
-});
+export const retryRenditon = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    const userId = req.user!.userId;
 
-export const retryRenditon = asyncHandler(async(req:AuthenticatedRequest,res:Response)=>{
-  const {id} = req.params;
-  const userId = req.user!.userId;
-  
-  if(!id || typeof id !=="string"){
-    throw new AppError(400,"Invalid rendition id");
-  }
+    if (!id || typeof id !== "string") {
+      throw new AppError(400, "Invalid rendition id");
+    }
 
-  const rendition = await prisma.videoRendition.findUnique({
-    where:{id},
-    include:{video:true},
-  });
+    const rendition = await prisma.videoRendition.findUnique({
+      where: { id },
+      include: { video: true },
+    });
 
-  if(!rendition){
-    throw new AppError(404,"rendition not found");
-  }
+    if (!rendition) {
+      throw new AppError(404, "rendition not found");
+    }
 
-  if(rendition.video.userId !== userId){
-    throw new AppError(403,"not authorized to retry this rendition");
-  }
+    if (rendition.video.userId !== userId) {
+      throw new AppError(403, "not authorized to retry this rendition");
+    }
 
-  if(rendition.status !== "FAILED"){
-    throw new AppError(400,`Only FAILED renditions can be retried (current status : ${rendition.status})`);
-  }
+    if (rendition.status !== "FAILED") {
+      throw new AppError(
+        400,
+        `Only FAILED renditions can be retried (current status : ${rendition.status})`,
+      );
+    }
 
-  await prisma.videoRendition.update({
-    where:{id},
-    data:{status:"QUEUED"},
-  });
+    await prisma.videoRendition.update({
+      where: { id },
+      data: { status: "QUEUED" },
+    });
 
-  await prisma.transcodingJob.update({
-    where: {renditionId:id},
-    data:{status:"QUEUED",error:null, completedAt:null},
-  });
+    await prisma.transcodingJob.update({
+      where: { renditionId: id },
+      data: { status: "QUEUED", error: null, completedAt: null },
+    });
 
-  await transcodeQueue.add("transcode",{
-    videoId: rendition.videoId,
-    renditionId: rendition.id,
-    resolution: Number(rendition.resolution),
-    inputPath: rendition.video.originalUrl,
-  });
+    await transcodeQueue.add("transcode", {
+      videoId: rendition.videoId,
+      renditionId: rendition.id,
+      resolution: Number(rendition.resolution),
+      inputPath: rendition.video.originalUrl,
+    });
 
-  res.status(200).json({message:"Retry Queued",renditionId: rendition.id});
-});
+    res
+      .status(200)
+      .json({ message: "Retry Queued", renditionId: rendition.id });
+  },
+);

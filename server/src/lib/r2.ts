@@ -11,7 +11,10 @@ if (!R2_ACCESS_KEY_ID) {
   throw new Error("R2_ACCESS_KEY_ID is not defined in .env");
 }
 
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+if(!R2_SECRET_ACCESS_KEY){
+  throw new Error("R2_SECRET_ACCESS_KEY is not set in .env")
+}
 
 export const r2 = new S3Client({
   region: "auto",
