@@ -20,6 +20,22 @@ export const getPresignedUrl = asyncHandler(
       throw new AppError(400, "title and contentType are required");
     }
 
+    const ALLOWED_CONTENT_TYPES = [
+      "video/mp4",
+      "video/quicktime",
+      "video/x-matroska",
+      "video/webm",
+    ];
+    if (
+      typeof contentType !== "string" ||
+      !ALLOWED_CONTENT_TYPES.includes(contentType)
+    ) {
+      throw new AppError(
+        400,
+        `Unsupported contentType. Allowed: ${ALLOWED_CONTENT_TYPES.join(", ")}`,
+      );
+    }
+
     const userId = req.user!.userId;
     const key = `uploads/${userId}/${randomUUID()}`;
 

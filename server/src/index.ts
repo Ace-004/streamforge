@@ -9,8 +9,10 @@ import authRoutes from "./routes/auth.routes.js";
 import videoRoutes from "./routes/video.routes.js";
 import { reconcileQueue } from "./lib/reconcileQueue.js";
 import { startReconcileWorker } from "./jobs/reconcilePendingVideos.js";
+import helmet from "helmet";
 
 const app = express();
+app.use(helmet());
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true,

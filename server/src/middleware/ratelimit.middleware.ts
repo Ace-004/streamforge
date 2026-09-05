@@ -10,3 +10,11 @@ export const authLimiter = rateLimit({
 
 // add more here later as needed, e.g.:
 // export const uploadLimiter = rateLimit({ ... });
+
+export const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many upload requests, try again later" },
+});

@@ -12,12 +12,14 @@ const BANDWIDTH_MAP: Record<string, number> = {
   "360": 800000,
   "480": 1400000,
   "720": 2800000,
+  "1080": 5000000,
 };
 
 const RESOLUTION_LABEL: Record<string, string> = {
   "360": "640x360",
   "480": "854x480",
   "720": "1280x720",
+  "1080": "1920x1080",
 };
 
 export async function regenerateMasterPlaylist(videoId: string): Promise<void> {
