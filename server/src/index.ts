@@ -1,37 +1,8 @@
-import dotenv from "dotenv";
-dotenv.config();
-import express from "express";
-import cors from 'cors';
-import { errorHandler } from "./middleware/error.middleware.js";
-import cookieParser from "cookie-parser";
-
-import authRoutes from "./routes/auth.routes.js";
-import videoRoutes from "./routes/video.routes.js";
+import { app } from "./app.js";
 import { reconcileQueue } from "./lib/reconcileQueue.js";
 import { startReconcileWorker } from "./jobs/reconcilePendingVideos.js";
-import helmet from "helmet";
 import { setupWebSocketServer } from "./lib/ws.js";
-import "./lib/queueEvents.js"; // side-effect import: registers the listeners
-
-const app = express();
-app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL,
-  credentials: true,
-}));
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-
-app.use('/auth', authRoutes);
-app.use('/videos', videoRoutes);
-
-app.use("/health", async (req, res) => {
-  res.json({ status: "ok" });
-});
-
-app.use(errorHandler);
+import "./lib/queueEvents.js";
 
 const PORT = process.env.PORT || 4000;
 
