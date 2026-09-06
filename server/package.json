@@ -7,7 +7,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "dotenv -e .env.test -- vitest run",
+  "test:watch": "dotenv -e .env.test -- vitest",
+  "test:migrate": "dotenv -e .env.test -- npx prisma migrate deploy",
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js"
@@ -40,9 +42,13 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.2.0",
+    "@types/supertest": "^7.2.1",
     "@types/ws": "^8.18.1",
+    "dotenv-cli": "^11.0.0",
     "prisma": "^7.9.1",
+    "supertest": "^7.2.2",
     "tsx": "^4.23.12",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   }
 }
