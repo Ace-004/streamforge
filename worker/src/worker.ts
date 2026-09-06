@@ -9,6 +9,7 @@ import { regenerateMasterPlaylist } from "./lib/masterPlaylist.js";
 import { finalizeVideoStatusIfDone } from "./lib/finalizeVideoStatus.js";
 import { rm } from "fs/promises";
 import { publishVideoEvent } from "./lib/rabbitmq.js";
+import { parseFFmpegTimeSeconds, calculatePercent } from "./lib/progress.js";
 
 type TranscodeJobData = {
   videoId: string;
@@ -17,13 +18,6 @@ type TranscodeJobData = {
   inputPath: string;
   duration: number;
 };
-
-function parseFFmpegTimeSeconds(line: string): number | null {
-  const match = line.match(/time=(\d+):(\d+):(\d+\.\d+)/);
-  if (!match) return null;
-  const [, hh, mm, ss] = match;
-  return Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
-}
 
 const worker = new Worker<TranscodeJobData>(
   "transcode",
@@ -89,10 +83,7 @@ const worker = new Worker<TranscodeJobData>(
           if (duration > 0) {
             const currentSeconds = parseFFmpegTimeSeconds(line);
             if (currentSeconds !== null) {
-              const percent = Math.min(
-                100,
-                Math.round((currentSeconds / duration) * 100),
-              );
+              const percent = calculatePercent(currentSeconds, duration);
               job
                 .updateProgress({
                   videoId,
