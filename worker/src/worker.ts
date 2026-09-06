@@ -91,7 +91,7 @@ const worker = new Worker<TranscodeJobData>(
             if (currentSeconds !== null) {
               const percent = Math.min(
                 100,
-                Math.round(currentSeconds / duration) * 100,
+                Math.round((currentSeconds / duration) * 100),
               );
               job
                 .updateProgress({
@@ -99,6 +99,7 @@ const worker = new Worker<TranscodeJobData>(
                   renditionId,
                   resolution,
                   stage: "transcoding",
+                  percent,
                 })
                 .catch(() => {});
             }
@@ -141,7 +142,7 @@ const worker = new Worker<TranscodeJobData>(
         resolution,
         timestamp: new Date().toISOString(),
       });
-      return {videoId,renditionId,resolution};
+      return { videoId, renditionId, resolution };
     } finally {
       await rm(jobTmpDir, { recursive: true, force: true });
     }
