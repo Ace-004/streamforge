@@ -154,6 +154,7 @@ export const completeUpload = asyncHandler(
         renditionId,
         resolution,
         inputPath: video.originalUrl,
+        duration,
       });
     }
 
@@ -263,6 +264,7 @@ export const retryRenditon = asyncHandler(
       renditionId: rendition.id,
       resolution: Number(rendition.resolution),
       inputPath: rendition.video.originalUrl,
+      duration:rendition.video.duration,
     });
 
     res

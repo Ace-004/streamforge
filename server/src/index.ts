@@ -10,6 +10,8 @@ import videoRoutes from "./routes/video.routes.js";
 import { reconcileQueue } from "./lib/reconcileQueue.js";
 import { startReconcileWorker } from "./jobs/reconcilePendingVideos.js";
 import helmet from "helmet";
+import { setupWebSocketServer } from "./lib/ws.js";
+import "./lib/queueEvents.js"; // side-effect import: registers the listeners
 
 const app = express();
 app.use(helmet());
@@ -33,14 +35,14 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, async () => {
+const httpServer = app.listen(PORT, async () => {
   console.log(`server is running on port ${PORT}`);
-
   await reconcileQueue.upsertJobScheduler(
     "reconcile-pending-videos-schedule",
     { every: 15 * 60 * 1000 },
     { name: "reconcile" },
   );
-
   startReconcileWorker();
 });
+
+setupWebSocketServer(httpServer);

@@ -15,12 +15,20 @@ type TranscodeJobData = {
   renditionId: string;
   resolution: number;
   inputPath: string;
+  duration: number;
 };
+
+function parseFFmpegTimeSeconds(line: string): number | null {
+  const match = line.match(/time=(\d+):(\d+):(\d+\.\d+)/);
+  if (!match) return null;
+  const [, hh, mm, ss] = match;
+  return Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
+}
 
 const worker = new Worker<TranscodeJobData>(
   "transcode",
   async (job) => {
-    const { videoId, renditionId, resolution, inputPath } = job.data;
+    const { videoId, renditionId, resolution, inputPath, duration } = job.data;
     const jobTmpDir = `./tmp/${renditionId}`;
     const localInputPath = `${jobTmpDir}/input.mp4`;
     const renditionDir = `${jobTmpDir}/${resolution}p`;
@@ -37,8 +45,21 @@ const worker = new Worker<TranscodeJobData>(
         data: { status: "PROCESSING", startedAt: new Date() },
       });
 
+      await job.updateProgress({
+        videoId,
+        renditionId,
+        resolution,
+        stage: "downloading",
+      });
       await downloadFromR2(inputPath, localInputPath);
       await mkdir(renditionDir, { recursive: true });
+
+      await job.updateProgress({
+        videoId,
+        renditionId,
+        resolution,
+        stage: "transcoding",
+      });
 
       await new Promise<void>((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
@@ -62,13 +83,39 @@ const worker = new Worker<TranscodeJobData>(
         ]);
 
         ffmpeg.stderr.on("data", (data) => {
+          const line = data.toString();
           console.log(`[job ${job.id}] ${data}`);
+
+          if (duration > 0) {
+            const currentSeconds = parseFFmpegTimeSeconds(line);
+            if (currentSeconds !== null) {
+              const percent = Math.min(
+                100,
+                Math.round(currentSeconds / duration) * 100,
+              );
+              job
+                .updateProgress({
+                  videoId,
+                  renditionId,
+                  resolution,
+                  stage: "transcoding",
+                })
+                .catch(() => {});
+            }
+          }
         });
 
         ffmpeg.on("close", (code) => {
           if (code === 0) resolve();
           else reject(new Error(`FFmpeg exited with code ${code}`));
         });
+      });
+
+      await job.updateProgress({
+        videoId,
+        renditionId,
+        resolution,
+        stage: "uploading",
       });
 
       const r2Prefix = `processed/${videoId}/${resolution}p`;
@@ -94,7 +141,7 @@ const worker = new Worker<TranscodeJobData>(
         resolution,
         timestamp: new Date().toISOString(),
       });
-
+      return {videoId,renditionId,resolution};
     } finally {
       await rm(jobTmpDir, { recursive: true, force: true });
     }
@@ -130,13 +177,13 @@ worker.on("failed", async (job, err) => {
   });
 
   await publishVideoEvent({
-    type:"rendition_failed",
+    type: "rendition_failed",
     videoId: job.data.videoId,
     renditionId: job.data.renditionId,
     resolution: job.data.resolution,
-    error:err.message,
-    timestamp:new Date().toISOString(),
-  })
+    error: err.message,
+    timestamp: new Date().toISOString(),
+  });
 
   await finalizeVideoStatusIfDone(job.data.videoId);
 });
