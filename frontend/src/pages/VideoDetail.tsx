@@ -44,17 +44,33 @@ export function VideoDetail() {
 
   // Attach hls.js (or native HLS for Safari) once we have a playback URL
   useEffect(() => {
-    if (!playbackUrl || !videoRef.current) return;
+    console.log("useEffect ran", {
+    playbackUrl,
+    video: videoRef.current,
+    nativeHls: videoRef.current?.canPlayType(
+      "application/vnd.apple.mpegurl"
+    ),
+    hlsSupported: Hls.isSupported(),
+  });
+    if (!playbackUrl || !videoRef.current) {
+      console.log("Stopped: missing playbackUrl or video element");
+      return;}
     const videoEl = videoRef.current;
 
     if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+      console.log("Using native HLS — MANIFEST_PARSED will NOT run");
       videoEl.src = playbackUrl;
+       videoEl.addEventListener("loadedmetadata", () => {
+      console.log("Native HLS metadata loaded");
+    });
     } else if (Hls.isSupported()) {
       const hls = new Hls();
       hlsRef.current = hls;
       hls.loadSource(playbackUrl);
       hls.attachMedia(videoEl);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hls.on(Hls.Events.MANIFEST_PARSED, (event,data) => {
+         console.log('HLS levels:', hls.levels);
+  console.log('data.levels:', data.levels);
         setLevels(hls.levels);
       });
       return () => {
@@ -63,6 +79,46 @@ export function VideoDetail() {
       };
     }
   }, [playbackUrl]);
+
+//   useEffect(() => {
+//   if (!playbackUrl || !videoRef.current) return;
+
+//   const videoEl = videoRef.current;
+
+//   // Prefer hls.js when available (gives us levels + quality switching)
+//   if (Hls.isSupported()) {
+//     const hls = new Hls({
+//       debug: true, // remove in prod or gate behind a flag
+//     });
+//     hlsRef.current = hls;
+
+//     hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+//       console.log("Manifest parsed – levels:", data.levels);
+//       setLevels(data.levels);
+//     });
+
+//     hls.on(Hls.Events.ERROR, (_, data) => {
+//       console.error("HLS error:", data);
+//     });
+
+//     hls.attachMedia(videoEl);
+//     hls.loadSource(playbackUrl);
+
+//     return () => {
+//       hls.destroy();
+//       hlsRef.current = null;
+//     };
+//   }
+
+//   // Fallback: native HLS (Safari, etc.) – no levels control
+//   if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+//     videoEl.src = playbackUrl;
+//     // Optionally: setLevels([]) or some "auto-only" marker
+//     return;
+//   }
+
+//   console.error("No HLS support (neither hls.js nor native)");
+// }, [playbackUrl]);
 
   function handleQualityChange(levelIndex: number) {
     if (!hlsRef.current) return;
