@@ -24,4 +24,6 @@ export const api = {
 
   retryRendition: (renditionId: string) =>
     client.post(`/videos/renditions/${renditionId}/retry`).then((r) => r.data),
+
+  listNotifications: () => client.get("/notifications").then((r) => r.data),
 };
