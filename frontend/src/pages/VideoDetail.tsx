@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import Hls from "hls.js";
+import Hls, { type Level } from "hls.js";
 import { api } from "../lib/api";
 
 type Rendition = {
@@ -25,6 +25,9 @@ export function VideoDetail() {
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressMap>({});
   const [error, setError] = useState("");
+  const hlsRef = useRef<Hls | null>(null);
+  const [levels, setLevels] = useState<Level[]>([]);
+  const [currentLevel, setCurrentLevel] = useState(-1); // -1 = Auto (ABR)
 
   async function loadVideo() {
     if (!id) return;
@@ -34,10 +37,10 @@ export function VideoDetail() {
   }
 
   useEffect(() => {
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  loadVideo();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [id]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadVideo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   // Attach hls.js (or native HLS for Safari) once we have a playback URL
   useEffect(() => {
@@ -48,11 +51,24 @@ export function VideoDetail() {
       videoEl.src = playbackUrl;
     } else if (Hls.isSupported()) {
       const hls = new Hls();
+      hlsRef.current = hls;
       hls.loadSource(playbackUrl);
       hls.attachMedia(videoEl);
-      return () => hls.destroy();
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setLevels(hls.levels);
+      });
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+      };
     }
   }, [playbackUrl]);
+
+  function handleQualityChange(levelIndex: number) {
+    if (!hlsRef.current) return;
+    hlsRef.current.currentLevel = levelIndex; // -1 tells hls.js to resume ABR
+    setCurrentLevel(levelIndex);
+  }
 
   // Live progress via WebSocket
   useEffect(() => {
@@ -102,27 +118,62 @@ export function VideoDetail() {
   if (!video) return <p>Loading...</p>;
 
   return (
-    <div>
+    <div className="page">
       <h1>{video.title}</h1>
-      <p>Status: {video.status}</p>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      <span className={`badge badge-${video.status}`}>{video.status}</span>
+      {error && <p className="error">{error}</p>}
 
-      {playbackUrl && (
-        <video ref={videoRef} controls style={{ width: "100%", maxWidth: 640 }} />
+      {playbackUrl && <video ref={videoRef} controls />}
+
+      {levels.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <label>
+            Quality:{" "}
+            <select
+              value={currentLevel}
+              onChange={(e) => handleQualityChange(Number(e.target.value))}
+            >
+              <option value={-1}>Auto</option>
+              {levels.map((level, index) => (
+                <option key={index} value={index}>
+                  {level.height}p
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       )}
 
       <h2>Renditions</h2>
-      <ul>
+      <ul className="rendition-list">
         {video.renditions.map((r) => {
           const live = progress[r.id];
           return (
             <li key={r.id}>
-              {r.resolution}p — {r.status}
+              <div className="rendition-row">
+                <span>{r.resolution}p</span>
+                <span className={`badge badge-${r.status}`}>{r.status}</span>
+              </div>
               {live && (
-                <> — live: {live.stage}{live.percent !== undefined ? ` ${live.percent}%` : ""}</>
+                <>
+                  <div className="progress-track">
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: `${live.percent ?? (live.stage === "uploading" ? 100 : 0)}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="progress-label">
+                    {live.stage}
+                    {live.percent !== undefined ? ` — ${live.percent}%` : ""}
+                  </span>
+                </>
               )}
               {r.status === "FAILED" && (
-                <button onClick={() => handleRetry(r.id)}>Retry</button>
+                <button className="secondary" onClick={() => handleRetry(r.id)}>
+                  Retry
+                </button>
               )}
             </li>
           );

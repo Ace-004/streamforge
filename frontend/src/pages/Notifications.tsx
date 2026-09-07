@@ -17,15 +17,17 @@ export function Notifications() {
   }, []);
 
   return (
-    <div>
-      <h1>Notifications</h1>
-      <ul>
-        {notifications.map((n) => (
-          <li key={n.id}>
-            [{n.type}] {JSON.stringify(n.payload)} — {new Date(n.createdAt).toLocaleString()}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  <div className="page">
+    <h1>Notifications</h1>
+    <ul className="notification-list">
+      {notifications.map((n) => (
+        <li key={n.id}>
+          <span className="notification-type">{n.type}</span>
+          <span className="notification-time">{new Date(n.createdAt).toLocaleString()}</span>
+          <div>{JSON.stringify(n.payload)}</div>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
 }

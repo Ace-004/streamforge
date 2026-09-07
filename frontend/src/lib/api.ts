@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const client = axios.create({ baseURL: import.meta.env.VITE_API_URL });
+const client = axios.create({ baseURL: import.meta.env.VITE_API_URL,
+  withCredentials:true,
+ });
 
 export const api = {
   register: (email: string, password: string) =>
@@ -17,10 +19,10 @@ export const api = {
   completeUpload: (videoId: string) =>
     client.post(`/videos/${videoId}/complete`).then((r) => r.data),
 
-  listVideos: () => client.post("/videos").then((r) => r.data),
+  listVideos: () => client.get("/videos").then((r) => r.data),
 
   getVideo: (videoId: string) =>
-    client.get(`/video/${videoId}`).then((r) => r.data),
+    client.get(`/videos/${videoId}`).then((r) => r.data),
 
   retryRendition: (renditionId: string) =>
     client.post(`/videos/renditions/${renditionId}/retry`).then((r) => r.data),

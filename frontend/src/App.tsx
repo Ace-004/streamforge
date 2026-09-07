@@ -19,8 +19,10 @@ function NavBar() {
 
   return (
     <nav>
-      <Link to="/">My Videos</Link> | <Link to="/notifications">Notifications</Link> |{" "}
-      <button onClick={handleLogout}>Logout</button>
+      <Link to="/">My Videos</Link>
+      <Link to="/notifications">Notifications</Link>
+      <span className="spacer" />
+      <button className="secondary" onClick={handleLogout}>Logout</button>
     </nav>
   );
 }
