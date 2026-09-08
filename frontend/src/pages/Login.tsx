@@ -22,16 +22,16 @@ export function Login() {
     }
   }
 
-  return (
+return (
   <div className="auth-page">
-    <h1>Register</h1>
+    <h1>Login</h1>
     <form onSubmit={handleSubmit}>
       <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      <input type="password" placeholder="Password (min 8 chars)" value={password} onChange={(e) => setPassword(e.target.value)} required />
-      <button type="submit">Register</button>
+      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <button type="submit">Login</button>
     </form>
     {error && <p className="error">{error}</p>}
-    <p className="hint"><Link to="/login">Already have an account? Login</Link></p>
+    <p className="hint"><Link to="/register">Need an account? Register</Link></p>
   </div>
 );
 }
