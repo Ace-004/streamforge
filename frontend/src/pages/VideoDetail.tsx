@@ -43,42 +43,67 @@ export function VideoDetail() {
   }, [id]);
 
   // Attach hls.js (or native HLS for Safari) once we have a playback URL
-  useEffect(() => {
-    console.log("useEffect ran", {
+// Attach hls.js (or native HLS for Safari) once we have a playback URL
+useEffect(() => {
+  console.log("useEffect ran", {
     playbackUrl,
     video: videoRef.current,
-    nativeHls: videoRef.current?.canPlayType(
-      "application/vnd.apple.mpegurl"
-    ),
+    nativeHls: videoRef.current?.canPlayType("application/vnd.apple.mpegurl"),
     hlsSupported: Hls.isSupported(),
   });
-    if (!playbackUrl || !videoRef.current) {
-      console.log("Stopped: missing playbackUrl or video element");
-      return;}
-    const videoEl = videoRef.current;
 
-    if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
-      console.log("Using native HLS — MANIFEST_PARSED will NOT run");
-      videoEl.src = playbackUrl;
-       videoEl.addEventListener("loadedmetadata", () => {
-      console.log("Native HLS metadata loaded");
+  if (!playbackUrl || !videoRef.current) {
+    console.log("Stopped: missing playbackUrl or video element");
+    return;
+  }
+  const videoEl = videoRef.current;
+
+  if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+    console.log("Using native HLS — MANIFEST_PARSED will NOT run");
+    videoEl.src = playbackUrl;
+  } else if (Hls.isSupported()) {
+    console.log("Using hls.js");
+    const hls = new Hls();
+    hlsRef.current = hls;
+
+    hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+      console.log("MANIFEST_PARSED fired, levels:", data.levels);
+      setLevels(data.levels);
     });
-    } else if (Hls.isSupported()) {
-      const hls = new Hls();
-      hlsRef.current = hls;
-      hls.loadSource(playbackUrl);
-      hls.attachMedia(videoEl);
-      hls.on(Hls.Events.MANIFEST_PARSED, (event,data) => {
-         console.log('HLS levels:', hls.levels);
-  console.log('data.levels:', data.levels);
-        setLevels(hls.levels);
-      });
-      return () => {
-        hls.destroy();
-        hlsRef.current = null;
-      };
-    }
-  }, [playbackUrl]);
+
+    hls.loadSource(playbackUrl);
+    hls.attachMedia(videoEl);
+
+    return () => {
+      hls.destroy();
+      hlsRef.current = null;
+    };
+  }
+}, [playbackUrl]);
+
+//   useEffect(() => {
+//   if (!playbackUrl || !videoRef.current) return;
+//   const videoEl = videoRef.current;
+
+//   if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+//     videoEl.src = playbackUrl;
+//   } else if (Hls.isSupported()) {
+//     const hls = new Hls();
+//     hlsRef.current = hls;
+
+//     hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
+//       setLevels(data.levels);
+//     });
+
+//     hls.loadSource(playbackUrl);
+//     hls.attachMedia(videoEl);
+
+//     return () => {
+//       hls.destroy();
+//       hlsRef.current = null;
+//     };
+//   }
+// }, [playbackUrl]);
 
 //   useEffect(() => {
 //   if (!playbackUrl || !videoRef.current) return;
