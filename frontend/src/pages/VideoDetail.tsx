@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import Hls, { type Level } from "hls.js";
+import Hls from "hls.js";
 import { api } from "../lib/api";
 
 type Rendition = {
@@ -25,9 +25,6 @@ export function VideoDetail() {
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressMap>({});
   const [error, setError] = useState("");
-  const hlsRef = useRef<Hls | null>(null);
-  const [levels, setLevels] = useState<Level[]>([]);
-  const [currentLevel, setCurrentLevel] = useState(-1); // -1 = Auto (ABR)
 
   async function loadVideo() {
     if (!id) return;
@@ -42,114 +39,21 @@ export function VideoDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Attach hls.js (or native HLS for Safari) once we have a playback URL
-// Attach hls.js (or native HLS for Safari) once we have a playback URL
-useEffect(() => {
-  console.log("useEffect ran", {
-    playbackUrl,
-    video: videoRef.current,
-    nativeHls: videoRef.current?.canPlayType("application/vnd.apple.mpegurl"),
-    hlsSupported: Hls.isSupported(),
-  });
+  // Attach hls.js (or native HLS where the browser supports it) once we have a playback URL.
+  // ABR (automatic quality switching) is handled internally either way.
+  useEffect(() => {
+    if (!playbackUrl || !videoRef.current) return;
+    const videoEl = videoRef.current;
 
-  if (!playbackUrl || !videoRef.current) {
-    console.log("Stopped: missing playbackUrl or video element");
-    return;
-  }
-  const videoEl = videoRef.current;
-
-  if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
-    console.log("Using native HLS — MANIFEST_PARSED will NOT run");
-    videoEl.src = playbackUrl;
-  } else if (Hls.isSupported()) {
-    console.log("Using hls.js");
-    const hls = new Hls();
-    hlsRef.current = hls;
-
-    hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
-      console.log("MANIFEST_PARSED fired, levels:", data.levels);
-      setLevels(data.levels);
-    });
-
-    hls.loadSource(playbackUrl);
-    hls.attachMedia(videoEl);
-
-    return () => {
-      hls.destroy();
-      hlsRef.current = null;
-    };
-  }
-}, [playbackUrl]);
-
-//   useEffect(() => {
-//   if (!playbackUrl || !videoRef.current) return;
-//   const videoEl = videoRef.current;
-
-//   if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
-//     videoEl.src = playbackUrl;
-//   } else if (Hls.isSupported()) {
-//     const hls = new Hls();
-//     hlsRef.current = hls;
-
-//     hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
-//       setLevels(data.levels);
-//     });
-
-//     hls.loadSource(playbackUrl);
-//     hls.attachMedia(videoEl);
-
-//     return () => {
-//       hls.destroy();
-//       hlsRef.current = null;
-//     };
-//   }
-// }, [playbackUrl]);
-
-//   useEffect(() => {
-//   if (!playbackUrl || !videoRef.current) return;
-
-//   const videoEl = videoRef.current;
-
-//   // Prefer hls.js when available (gives us levels + quality switching)
-//   if (Hls.isSupported()) {
-//     const hls = new Hls({
-//       debug: true, // remove in prod or gate behind a flag
-//     });
-//     hlsRef.current = hls;
-
-//     hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-//       console.log("Manifest parsed – levels:", data.levels);
-//       setLevels(data.levels);
-//     });
-
-//     hls.on(Hls.Events.ERROR, (_, data) => {
-//       console.error("HLS error:", data);
-//     });
-
-//     hls.attachMedia(videoEl);
-//     hls.loadSource(playbackUrl);
-
-//     return () => {
-//       hls.destroy();
-//       hlsRef.current = null;
-//     };
-//   }
-
-//   // Fallback: native HLS (Safari, etc.) – no levels control
-//   if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
-//     videoEl.src = playbackUrl;
-//     // Optionally: setLevels([]) or some "auto-only" marker
-//     return;
-//   }
-
-//   console.error("No HLS support (neither hls.js nor native)");
-// }, [playbackUrl]);
-
-  function handleQualityChange(levelIndex: number) {
-    if (!hlsRef.current) return;
-    hlsRef.current.currentLevel = levelIndex; // -1 tells hls.js to resume ABR
-    setCurrentLevel(levelIndex);
-  }
+    if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+      videoEl.src = playbackUrl;
+    } else if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(playbackUrl);
+      hls.attachMedia(videoEl);
+      return () => hls.destroy();
+    }
+  }, [playbackUrl]);
 
   // Live progress via WebSocket
   useEffect(() => {
@@ -175,7 +79,7 @@ useEffect(() => {
           ...prev,
           [msg.renditionId]: { stage: msg.status },
         }));
-        loadVideo(); // refresh rendition list/status once something finishes
+        loadVideo();
       }
 
       if (msg.type === "error") {
@@ -205,25 +109,6 @@ useEffect(() => {
       {error && <p className="error">{error}</p>}
 
       {playbackUrl && <video ref={videoRef} controls />}
-
-      {levels.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <label>
-            Quality:{" "}
-            <select
-              value={currentLevel}
-              onChange={(e) => handleQualityChange(Number(e.target.value))}
-            >
-              <option value={-1}>Auto</option>
-              {levels.map((level, index) => (
-                <option key={index} value={index}>
-                  {level.height}p
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      )}
 
       <h2>Renditions</h2>
       <ul className="rendition-list">
