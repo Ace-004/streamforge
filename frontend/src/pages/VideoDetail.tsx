@@ -18,6 +18,9 @@ type VideoData = {
 
 type ProgressMap = Record<string, { stage: string; percent?: number }>;
 
+const ENABLE_WS = import.meta.env.VITE_ENABLE_WS !== "false";
+const TERMINAL_STATUSES = ["READY", "FAILED"];
+
 export function VideoDetail() {
   const { id } = useParams<{ id: string }>();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -55,9 +58,9 @@ export function VideoDetail() {
     }
   }, [playbackUrl]);
 
-  // Live progress via WebSocket
+  // Live progress via WebSocket — only when the deployment has WS support enabled.
   useEffect(() => {
-    if (!id) return;
+    if (!ENABLE_WS || !id) return;
     const ws = new WebSocket(import.meta.env.VITE_WS_URL);
 
     ws.onopen = () => {
@@ -90,6 +93,23 @@ export function VideoDetail() {
     return () => ws.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Fallback for deployments without WS support: poll for status changes
+  // (coarse — status transitions only, no live percent) while anything is non-terminal.
+  useEffect(() => {
+    if (ENABLE_WS || !id || !video) return;
+    const stillProcessing = video.renditions.some(
+      (r) => !TERMINAL_STATUSES.includes(r.status),
+    );
+    if (!stillProcessing) return;
+
+    const interval = setInterval(() => {
+      loadVideo();
+    }, 4000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, video]);
 
   async function handleRetry(renditionId: string) {
     try {
