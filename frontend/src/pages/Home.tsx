@@ -10,6 +10,8 @@ type Video = {
   createdAt: string;
 };
 
+const ENABLE_WS = import.meta.env.VITE_ENABLE_WS !== "false";
+
 export function Home() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -30,9 +32,7 @@ export function Home() {
     loadVideos();
   }, []);
 
-const ENABLE_WS = import.meta.env.VITE_ENABLE_WS !== "false";
 
-// ... (inside the component, replacing the existing WS-only effect) ...
 
 // Keep the list live: while any video is still processing, subscribe to
 // its WebSocket updates and refresh the list once it reaches a terminal state.
