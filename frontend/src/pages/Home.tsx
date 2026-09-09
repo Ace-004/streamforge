@@ -30,46 +30,65 @@ export function Home() {
     loadVideos();
   }, []);
 
-  // Keep the list live: while any video is still processing, subscribe to
-  // its WebSocket updates and refresh the list once it reaches a terminal state.
-  useEffect(() => {
-    const pending = videos.filter((v) => v.status === "PENDING" || v.status === "PROCESSING");
-    if (pending.length === 0) {
-      wsRef.current?.close();
-      return;
+const ENABLE_WS = import.meta.env.VITE_ENABLE_WS !== "false";
+
+// ... (inside the component, replacing the existing WS-only effect) ...
+
+// Keep the list live: while any video is still processing, subscribe to
+// its WebSocket updates and refresh the list once it reaches a terminal state.
+useEffect(() => {
+  if (!ENABLE_WS) return;
+  const pending = videos.filter((v) => v.status === "PENDING" || v.status === "PROCESSING");
+  if (pending.length === 0) {
+    wsRef.current?.close();
+    return;
+  }
+
+  if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+    wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
+  }
+  const ws = wsRef.current;
+
+  const handleOpen = () => {
+    pending.forEach((v) => {
+      ws.send(JSON.stringify({ type: "subscribe", videoId: v.id }));
+    });
+  };
+
+  const handleMessage = (event: MessageEvent) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type === "terminal") {
+      loadVideos();
     }
+  };
 
-    if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
-      wsRef.current = new WebSocket(import.meta.env.VITE_WS_URL);
-    }
-    const ws = wsRef.current;
+  if (ws.readyState === WebSocket.OPEN) handleOpen();
+  else ws.addEventListener("open", handleOpen);
+  ws.addEventListener("message", handleMessage);
 
-    const handleOpen = () => {
-      pending.forEach((v) => {
-        ws.send(JSON.stringify({ type: "subscribe", videoId: v.id }));
-      });
-    };
+  return () => {
+    ws.removeEventListener("open", handleOpen);
+    ws.removeEventListener("message", handleMessage);
+  };
+}, [videos]);
 
-    const handleMessage = (event: MessageEvent) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "terminal") {
-        loadVideos();
-      }
-    };
+// Fallback for deployments without WS support: poll the list while
+// anything is still processing.
+useEffect(() => {
+  if (ENABLE_WS) return;
+  const pending = videos.filter((v) => v.status === "PENDING" || v.status === "PROCESSING");
+  if (pending.length === 0) return;
 
-    if (ws.readyState === WebSocket.OPEN) handleOpen();
-    else ws.addEventListener("open", handleOpen);
-    ws.addEventListener("message", handleMessage);
+  const interval = setInterval(() => {
+    loadVideos();
+  }, 4000);
 
-    return () => {
-      ws.removeEventListener("open", handleOpen);
-      ws.removeEventListener("message", handleMessage);
-    };
-  }, [videos]);
+  return () => clearInterval(interval);
+}, [videos]);
 
-  useEffect(() => {
-    return () => wsRef.current?.close();
-  }, []);
+useEffect(() => {
+  return () => wsRef.current?.close();
+}, []);
 
   async function handleUpload(e: FormEvent) {
     e.preventDefault();

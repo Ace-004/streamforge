@@ -2,9 +2,9 @@ import { app } from "./app.js";
 import { reconcileQueue } from "./lib/reconcileQueue.js";
 import { startReconcileWorker } from "./jobs/reconcilePendingVideos.js";
 import { setupWebSocketServer } from "./lib/ws.js";
-import "./lib/queueEvents.js";
 
 const PORT = process.env.PORT || 4000;
+const ENABLE_WEBSOCKETS = process.env.ENABLE_WEBSOCKETS !== "false";
 
 const httpServer = app.listen(PORT, async () => {
   console.log(`server is running on port ${PORT}`);
@@ -16,4 +16,10 @@ const httpServer = app.listen(PORT, async () => {
   startReconcileWorker();
 });
 
-setupWebSocketServer(httpServer);
+if (ENABLE_WEBSOCKETS) {
+  setupWebSocketServer(httpServer);
+  await import("./lib/queueEvents.js");
+  console.log("WebSocket live progress enabled");
+} else {
+  console.log("WebSocket live progress disabled (ENABLE_WEBSOCKETS=false)");
+}
