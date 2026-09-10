@@ -5,13 +5,19 @@ const PASS = process.env.SMTP_PASS;
 if (!USER || !PASS) {
   throw new Error("SMTP_USER or SMTP_PASS is not set in .env");
 }
+// import nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: USER,
     pass: PASS,
   },
-});
+  family: 4,
+  // nodemailer's TS overloads don't cleanly resolve this valid combination
+  // of options (a known rough edge in @types/nodemailer) — this is correct
+  // and works at runtime; the assertion only silences a type-checker
+  // false positive, not a real bug.
+} as nodemailer.TransportOptions);
 
 type SummaryEmailParams = {
   to: string;

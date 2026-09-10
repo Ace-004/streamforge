@@ -19,7 +19,7 @@ type VideoData = {
 type ProgressMap = Record<string, { stage: string; percent?: number }>;
 
 const ENABLE_WS = import.meta.env.VITE_ENABLE_WS !== "false";
-const TERMINAL_STATUSES = ["READY", "FAILED"];
+// const TERMINAL_STATUSES = ["READY", "FAILED"];
 
 export function VideoDetail() {
   const { id } = useParams<{ id: string }>();
@@ -96,20 +96,17 @@ export function VideoDetail() {
 
   // Fallback for deployments without WS support: poll for status changes
   // (coarse — status transitions only, no live percent) while anything is non-terminal.
-  useEffect(() => {
-    if (ENABLE_WS || !id || !video) return;
-    const stillProcessing = video.renditions.some(
-      (r) => !TERMINAL_STATUSES.includes(r.status),
-    );
-    if (!stillProcessing) return;
+useEffect(() => {
+  if (ENABLE_WS || !id || !video) return;
+  if (video.status === "READY" || video.status === "FAILED") return;
 
-    const interval = setInterval(() => {
-      loadVideo();
-    }, 4000);
+  const interval = setInterval(() => {
+    loadVideo();
+  }, 4000);
 
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, video]);
+  return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [id, video]);
 
   async function handleRetry(renditionId: string) {
     try {
