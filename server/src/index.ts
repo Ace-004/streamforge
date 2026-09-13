@@ -10,7 +10,7 @@ const httpServer = app.listen(PORT, async () => {
   console.log(`server is running on port ${PORT}`);
   await reconcileQueue.upsertJobScheduler(
     "reconcile-pending-videos-schedule",
-    { every: 24 * 60 * 60 * 1000 },
+    { every: 48 * 60 * 60 * 1000 },
     { name: "reconcile" },
   );
   startReconcileWorker();
