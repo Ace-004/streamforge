@@ -101,6 +101,7 @@ model TranscodingJob {
   status      JobStatus @default(QUEUED)
   attempts    Int       @default(0)
   error       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
   startedAt   DateTime? @map("started_at")
   completedAt  DateTime? @map("completed_at")
 

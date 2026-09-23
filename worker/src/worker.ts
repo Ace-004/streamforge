@@ -59,6 +59,8 @@ const worker = new Worker<TranscodeJobData>(
         const ffmpeg = spawn("ffmpeg", [
           "-i",
           localInputPath,
+          "-threads",
+          "4",
           "-vf",
           `scale=-2:${resolution}`,
           "-c:v",
@@ -138,7 +140,7 @@ const worker = new Worker<TranscodeJobData>(
       await rm(jobTmpDir, { recursive: true, force: true });
     }
   },
-  { connection },
+  { connection, },
 );
 
 worker.on("completed", (job) => {

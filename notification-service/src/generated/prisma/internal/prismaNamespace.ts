@@ -957,6 +957,7 @@ export const TranscodingJobScalarFieldEnum = {
   status: 'status',
   attempts: 'attempts',
   error: 'error',
+  createdAt: 'createdAt',
   startedAt: 'startedAt',
   completedAt: 'completedAt'
 } as const

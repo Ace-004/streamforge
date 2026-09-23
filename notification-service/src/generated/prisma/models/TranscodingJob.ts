@@ -40,6 +40,7 @@ export type TranscodingJobMinAggregateOutputType = {
   status: $Enums.JobStatus | null
   attempts: number | null
   error: string | null
+  createdAt: Date | null
   startedAt: Date | null
   completedAt: Date | null
 }
@@ -50,6 +51,7 @@ export type TranscodingJobMaxAggregateOutputType = {
   status: $Enums.JobStatus | null
   attempts: number | null
   error: string | null
+  createdAt: Date | null
   startedAt: Date | null
   completedAt: Date | null
 }
@@ -60,6 +62,7 @@ export type TranscodingJobCountAggregateOutputType = {
   status: number
   attempts: number
   error: number
+  createdAt: number
   startedAt: number
   completedAt: number
   _all: number
@@ -80,6 +83,7 @@ export type TranscodingJobMinAggregateInputType = {
   status?: true
   attempts?: true
   error?: true
+  createdAt?: true
   startedAt?: true
   completedAt?: true
 }
@@ -90,6 +94,7 @@ export type TranscodingJobMaxAggregateInputType = {
   status?: true
   attempts?: true
   error?: true
+  createdAt?: true
   startedAt?: true
   completedAt?: true
 }
@@ -100,6 +105,7 @@ export type TranscodingJobCountAggregateInputType = {
   status?: true
   attempts?: true
   error?: true
+  createdAt?: true
   startedAt?: true
   completedAt?: true
   _all?: true
@@ -197,6 +203,7 @@ export type TranscodingJobGroupByOutputType = {
   status: $Enums.JobStatus
   attempts: number
   error: string | null
+  createdAt: Date
   startedAt: Date | null
   completedAt: Date | null
   _count: TranscodingJobCountAggregateOutputType | null
@@ -230,6 +237,7 @@ export type TranscodingJobWhereInput = {
   status?: Prisma.EnumJobStatusFilter<"TranscodingJob"> | $Enums.JobStatus
   attempts?: Prisma.IntFilter<"TranscodingJob"> | number
   error?: Prisma.StringNullableFilter<"TranscodingJob"> | string | null
+  createdAt?: Prisma.DateTimeFilter<"TranscodingJob"> | Date | string
   startedAt?: Prisma.DateTimeNullableFilter<"TranscodingJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"TranscodingJob"> | Date | string | null
   rendition?: Prisma.XOR<Prisma.VideoRenditionScalarRelationFilter, Prisma.VideoRenditionWhereInput>
@@ -241,6 +249,7 @@ export type TranscodingJobOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   attempts?: Prisma.SortOrder
   error?: Prisma.SortOrderInput | Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   rendition?: Prisma.VideoRenditionOrderByWithRelationInput
@@ -255,6 +264,7 @@ export type TranscodingJobWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumJobStatusFilter<"TranscodingJob"> | $Enums.JobStatus
   attempts?: Prisma.IntFilter<"TranscodingJob"> | number
   error?: Prisma.StringNullableFilter<"TranscodingJob"> | string | null
+  createdAt?: Prisma.DateTimeFilter<"TranscodingJob"> | Date | string
   startedAt?: Prisma.DateTimeNullableFilter<"TranscodingJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"TranscodingJob"> | Date | string | null
   rendition?: Prisma.XOR<Prisma.VideoRenditionScalarRelationFilter, Prisma.VideoRenditionWhereInput>
@@ -266,6 +276,7 @@ export type TranscodingJobOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   attempts?: Prisma.SortOrder
   error?: Prisma.SortOrderInput | Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.TranscodingJobCountOrderByAggregateInput
@@ -284,6 +295,7 @@ export type TranscodingJobScalarWhereWithAggregatesInput = {
   status?: Prisma.EnumJobStatusWithAggregatesFilter<"TranscodingJob"> | $Enums.JobStatus
   attempts?: Prisma.IntWithAggregatesFilter<"TranscodingJob"> | number
   error?: Prisma.StringNullableWithAggregatesFilter<"TranscodingJob"> | string | null
+  createdAt?: Prisma.DateTimeWithAggregatesFilter<"TranscodingJob"> | Date | string
   startedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"TranscodingJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"TranscodingJob"> | Date | string | null
 }
@@ -293,6 +305,7 @@ export type TranscodingJobCreateInput = {
   status?: $Enums.JobStatus
   attempts?: number
   error?: string | null
+  createdAt?: Date | string
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   rendition: Prisma.VideoRenditionCreateNestedOneWithoutJobInput
@@ -304,6 +317,7 @@ export type TranscodingJobUncheckedCreateInput = {
   status?: $Enums.JobStatus
   attempts?: number
   error?: string | null
+  createdAt?: Date | string
   startedAt?: Date | string | null
   completedAt?: Date | string | null
 }
@@ -313,6 +327,7 @@ export type TranscodingJobUpdateInput = {
   status?: Prisma.EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
   attempts?: Prisma.IntFieldUpdateOperationsInput | number
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   rendition?: Prisma.VideoRenditionUpdateOneRequiredWithoutJobNestedInput
@@ -324,6 +339,7 @@ export type TranscodingJobUncheckedUpdateInput = {
   status?: Prisma.EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
   attempts?: Prisma.IntFieldUpdateOperationsInput | number
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
@@ -334,6 +350,7 @@ export type TranscodingJobCreateManyInput = {
   status?: $Enums.JobStatus
   attempts?: number
   error?: string | null
+  createdAt?: Date | string
   startedAt?: Date | string | null
   completedAt?: Date | string | null
 }
@@ -343,6 +360,7 @@ export type TranscodingJobUpdateManyMutationInput = {
   status?: Prisma.EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
   attempts?: Prisma.IntFieldUpdateOperationsInput | number
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
@@ -353,6 +371,7 @@ export type TranscodingJobUncheckedUpdateManyInput = {
   status?: Prisma.EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
   attempts?: Prisma.IntFieldUpdateOperationsInput | number
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
@@ -368,6 +387,7 @@ export type TranscodingJobCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   attempts?: Prisma.SortOrder
   error?: Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
 }
@@ -382,6 +402,7 @@ export type TranscodingJobMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   attempts?: Prisma.SortOrder
   error?: Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
 }
@@ -392,6 +413,7 @@ export type TranscodingJobMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   attempts?: Prisma.SortOrder
   error?: Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
 }
@@ -453,6 +475,7 @@ export type TranscodingJobCreateWithoutRenditionInput = {
   status?: $Enums.JobStatus
   attempts?: number
   error?: string | null
+  createdAt?: Date | string
   startedAt?: Date | string | null
   completedAt?: Date | string | null
 }
@@ -462,6 +485,7 @@ export type TranscodingJobUncheckedCreateWithoutRenditionInput = {
   status?: $Enums.JobStatus
   attempts?: number
   error?: string | null
+  createdAt?: Date | string
   startedAt?: Date | string | null
   completedAt?: Date | string | null
 }
@@ -487,6 +511,7 @@ export type TranscodingJobUpdateWithoutRenditionInput = {
   status?: Prisma.EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
   attempts?: Prisma.IntFieldUpdateOperationsInput | number
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
@@ -496,6 +521,7 @@ export type TranscodingJobUncheckedUpdateWithoutRenditionInput = {
   status?: Prisma.EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
   attempts?: Prisma.IntFieldUpdateOperationsInput | number
   error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
@@ -508,6 +534,7 @@ export type TranscodingJobSelect<ExtArgs extends runtime.Types.Extensions.Intern
   status?: boolean
   attempts?: boolean
   error?: boolean
+  createdAt?: boolean
   startedAt?: boolean
   completedAt?: boolean
   rendition?: boolean | Prisma.VideoRenditionDefaultArgs<ExtArgs>
@@ -519,6 +546,7 @@ export type TranscodingJobSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   status?: boolean
   attempts?: boolean
   error?: boolean
+  createdAt?: boolean
   startedAt?: boolean
   completedAt?: boolean
   rendition?: boolean | Prisma.VideoRenditionDefaultArgs<ExtArgs>
@@ -530,6 +558,7 @@ export type TranscodingJobSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   status?: boolean
   attempts?: boolean
   error?: boolean
+  createdAt?: boolean
   startedAt?: boolean
   completedAt?: boolean
   rendition?: boolean | Prisma.VideoRenditionDefaultArgs<ExtArgs>
@@ -541,11 +570,12 @@ export type TranscodingJobSelectScalar = {
   status?: boolean
   attempts?: boolean
   error?: boolean
+  createdAt?: boolean
   startedAt?: boolean
   completedAt?: boolean
 }
 
-export type TranscodingJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "renditionId" | "status" | "attempts" | "error" | "startedAt" | "completedAt", ExtArgs["result"]["transcodingJob"]>
+export type TranscodingJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "renditionId" | "status" | "attempts" | "error" | "createdAt" | "startedAt" | "completedAt", ExtArgs["result"]["transcodingJob"]>
 export type TranscodingJobInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   rendition?: boolean | Prisma.VideoRenditionDefaultArgs<ExtArgs>
 }
@@ -567,6 +597,7 @@ export type $TranscodingJobPayload<ExtArgs extends runtime.Types.Extensions.Inte
     status: $Enums.JobStatus
     attempts: number
     error: string | null
+    createdAt: Date
     startedAt: Date | null
     completedAt: Date | null
   }, ExtArgs["result"]["transcodingJob"]>
@@ -998,6 +1029,7 @@ export interface TranscodingJobFieldRefs {
   readonly status: Prisma.FieldRef<"TranscodingJob", 'JobStatus'>
   readonly attempts: Prisma.FieldRef<"TranscodingJob", 'Int'>
   readonly error: Prisma.FieldRef<"TranscodingJob", 'String'>
+  readonly createdAt: Prisma.FieldRef<"TranscodingJob", 'DateTime'>
   readonly startedAt: Prisma.FieldRef<"TranscodingJob", 'DateTime'>
   readonly completedAt: Prisma.FieldRef<"TranscodingJob", 'DateTime'>
 }
