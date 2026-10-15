@@ -128,7 +128,7 @@ npm run dev
 | `DATABASE_URL` | server, worker, notification-service | Postgres connection string |
 | `REDIS_URL` | server, worker | Redis connection string (BullMQ) |
 | `RABBITMQ_URL` | worker, notification-service | RabbitMQ connection string |
-| `JWT_SECRET` | server | Secret for signing auth tokens |
+| `JWT_SECRET_KEY` | server | Secret for signing auth tokens |
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` | server, worker | Cloudflare R2 credentials |
 | `R2_PUBLIC_URL` | server | Public `r2.dev` (or custom) domain for playback URLs |
 | `RESEND_API_KEY` | notification-service | Email delivery |
