@@ -142,6 +142,8 @@ Each service's `.env.example` lists the complete set for that service.
 
 ### Run tests
 
+> `server/.env.test` is committed on purpose: it only contains dummy values pointing at the isolated test containers from `docker-compose.test.yml`.
+
 ```bash
 docker compose -f docker-compose.test.yml up -d   # isolated test Postgres + Redis
 cd server && npm test
