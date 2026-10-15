@@ -99,15 +99,16 @@ Full reasoning for every pick — including what was rejected and why — is in 
 git clone https://github.com/Ace-004/streamforge.git
 cd streamforge
 
-# each service reads its own .env — copy the example in each and fill in the values
-cp server/.env.example server/.env
-cp worker/.env.example worker/.env
-cp notification-service/.env.example notification-service/.env
+cp .env.example .env                                         # Postgres/RabbitMQ credentials for compose
+cp server/.env.example server/.env                           # JWT secret, R2 keys
+cp worker/.env.example worker/.env                           # R2 keys
+cp notification-service/.env.example notification-service/.env   # Resend key, sender address
 
+# fill in the values (R2, Resend, JWT secret), then:
 docker compose up --build
 ```
 
-This starts Postgres, Redis, RabbitMQ, `server`, `worker`, and `notification-service`, wired together.
+Compose provides the database, Redis, and RabbitMQ connection URLs to each service itself, so the service `.env` files only need the secrets. RabbitMQ's management UI is at `http://localhost:15672`.
 
 ### Run the frontend
 
@@ -141,8 +142,6 @@ npm run dev
 Each service's `.env.example` lists the complete set for that service.
 
 ### Run tests
-
-> `server/.env.test` is committed on purpose: it only contains dummy values pointing at the isolated test containers from `docker-compose.test.yml`.
 
 ```bash
 docker compose -f docker-compose.test.yml up -d   # isolated test Postgres + Redis
