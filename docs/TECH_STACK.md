@@ -25,10 +25,10 @@ For every technology used: **what it's used for here**, **why it was picked over
 
 ## Caching / Queue Backend
 
-### Redis (via Upstash in production)
+### Redis (via Redis Cloud in production)
 - **Used for:** the backing store for BullMQ (transcode job queue) and for the Redis stream that BullMQ's `QueueEvents` reads (relayed to WebSocket clients).
 - **Why:** BullMQ requires Redis specifically — it's not a generic cache choice here, it's a direct dependency of the queue library.
-- **Internally:** BullMQ stores each job's data as a Redis hash and tracks job state across several Redis structures: lists for jobs waiting and active, and sorted sets for delayed, completed, and failed jobs. Progress updates (`job.updateProgress()`) write to the job's hash and append an event to the queue's `events` stream. `server`'s `QueueEvents` listener reads that stream with a blocking `XREAD` and relays what it sees to subscribed WebSocket clients — the live percent bar is, mechanically, a Redis stream entry forwarded over a WebSocket. Because it's a stream rather than plain pub/sub, events aren't lost across a brief disconnection (the reader can resume from its last-seen ID); the stream is also auto-trimmed to roughly 10,000 entries by default.
+- **Internally:** BullMQ stores each job's data as a Redis hash and tracks job state across several Redis structures: lists for jobs waiting and active, and sorted sets for delayed, completed, and failed jobs. Progress updates (`job.updateProgress()`) write to the job's hash and append an event to the queue's `events` stream. `server`'s `QueueEvents` listener reads that stream with a blocking `XREAD` and relays what it sees to subscribed WebSocket clients — the live percent bar is, mechanically, a Redis stream entry forwarded over a WebSocket. Because it's a stream rather than plain pub/sub, events aren't lost across a brief disconnection (the reader can resume from its last-seen ID); the stream is also auto-trimmed to roughly 10,000 entries by default. Operationally: Redis keeps everything in RAM, so the free plan's 30 MB cap bounds the total size of queue data, which is why finished jobs are trimmed (`removeOnComplete`/`removeOnFail`) and why the eviction policy must be `noeviction` (any other policy can silently delete queue keys). Idle workers still send commands continuously, which is what exhausted a command-metered free tier earlier (ARCHITECTURE §15).
 
 ---
 
@@ -116,7 +116,7 @@ For every technology used: **what it's used for here**, **why it was picked over
 ### Docker (multi-stage builds)
 - **Why multi-stage:** the build stage installs full dev dependencies and compiles TypeScript; the final stage copies only compiled output + production dependencies + FFmpeg (needed in both `server`, for `ffprobe`, and `worker`, for the actual transcode) into a lean `node:20-alpine`-based image — keeping the deployed image smaller than a naive single-stage build would produce.
 
-### Render (bundled `server`+`worker`+`notification-service` container) / Vercel (frontend) / Neon (Postgres) / Upstash (Redis) / CloudAMQP (RabbitMQ) / Resend (email)
+### Render (bundled `server`+`worker`+`notification-service` container) / Vercel (frontend) / Neon (Postgres) / Redis Cloud (Redis) / CloudAMQP (RabbitMQ) / Resend (email)
 - Each choice here was free-tier-constraint-driven, not a "best in class" pick — see ARCHITECTURE §12 for the full reasoning (why bundled into one container, what that costs, and what a real-budget deployment would look like instead) and §10 for why email transport specifically pivoted from Gmail SMTP to Resend mid-deployment (a platform-level SMTP port block on Render's free tier, not a code bug).
 
 ---
@@ -127,7 +127,7 @@ For every technology used: **what it's used for here**, **why it was picked over
 |---|---|---|
 | Node.js + TS | Backend runtime | Shared language w/ frontend, compile-time safety |
 | PostgreSQL + Prisma | System of record | Relational integrity, transactional guarantees |
-| Redis (Upstash) | Queue backend | Required by BullMQ; its event stream feeds live progress |
+| Redis (Redis Cloud) | Queue backend | Required by BullMQ; its event stream feeds live progress |
 | BullMQ | Transcode job queue | Built-in progress/retry/backoff and a retained failed set |
 | RabbitMQ (CloudAMQP) | Cross-service events | Durable queue, ack-based at-least-once delivery |
 | FFmpeg / ffprobe | Video transcode & probing | Full control over flags + real progress parsing |

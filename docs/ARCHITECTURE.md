@@ -75,6 +75,8 @@ Using BullMQ for both would mean hand-building the durable-event semantics Rabbi
 
 **Internal mechanism — failed jobs:** when a job exhausts its configured retry attempts, BullMQ moves it to a `failed` set in Redis and retains it (queryable by job ID) rather than deleting it. That retained failed set plays the role of a dead-letter store. BullMQ does not automatically forward those jobs to a separate dead-letter queue, so a separate DLQ would be something to build deliberately if automated reprocessing were needed. Here, the `FAILED` DB status is only written once BullMQ has genuinely exhausted retries, not on the first attempt's failure, and a user-triggered retry re-enqueues the rendition (see WORKFLOW §8).
 
+**Retry and retention settings:** jobs are enqueued with 3 attempts and exponential backoff (5s base delay). Finished jobs are trimmed automatically (the newest 100 completed and 500 failed are kept), because the Redis instance has a hard memory cap and BullMQ otherwise retains every finished job forever.
+
 ---
 
 ## 6. Worker Design: Download → Process → Upload → Update, with try/finally Cleanup
@@ -97,13 +99,16 @@ Using BullMQ for both would mean hand-building the durable-event semantics Rabbi
 
 ---
 
-## 8. Reconciliation Sweep — A Second, Independent Consistency Mechanism
+## 8. Reconciliation Sweep — Garbage Collection for Abandoned Uploads
 
-**Decision:** a separate BullMQ queue runs a periodic sweep job (a repeatable job; its interval is set in the job's repeat options) that checks videos stuck in `PENDING` and confirms via R2's `HeadObjectCommand` whether the source file actually exists, cleaning up orphans whose upload never happened.
+**Decision:** a separate BullMQ queue runs a periodic sweep job (a repeatable job, every 48 hours) over videos that have been `PENDING` for more than an hour. For each one it checks R2 with `HeadObjectCommand`:
+- **Source object missing (a definitive 404):** the upload never happened, so the orphaned row is deleted.
+- **Any other R2 error (network, credentials, throttling):** the video is skipped and the error is logged. A failed check says nothing about whether the file exists, so nothing is deleted on an ambiguous result.
+- **Source object present:** the upload finished but the completion step never ran. The video is currently only logged for manual review.
 
-**Why this is needed even though the upload flow is already guarded:** the `/complete` endpoint's `HeadObjectCommand` guard (§4) only checks *at the moment `/complete` is called*. If a client's upload fails, or the browser tab closes before calling `/complete` at all, there's no event that ever tells the backend what happened — the video row is stuck `PENDING` forever with nothing to trigger a state change. The sweep is a periodic, independent check that doesn't depend on any client ever calling back in — it actively verifies reality against the DB rather than waiting to be told. This is a standard reconciliation pattern for systems where client-reported state can't be fully trusted.
+**What this covers:** abandoned uploads — a user requests a presigned URL and never uploads. The `/complete` guard (§4) only runs when a client calls it, so without the sweep those rows would sit in `PENDING` indefinitely. The sweep is not on any user-facing path, so a coarse interval costs only a delay in cleanup.
 
-**Why the interval can be long:** the sweep only cleans up abandoned records; it isn't on any user-facing path, so a coarse interval costs nothing but a delay in garbage collection.
+**Known gap:** a video whose upload reached R2 but whose `/complete` call was lost (for example, a network failure right after the PUT) stays `PENDING`. The sweep does not finish it automatically, and the UI has no "finish processing" action. The natural fix is to extract the `/complete` logic into one idempotent function that both the endpoint and the sweep call: an atomic `PENDING` → `PROCESSING` claim, reuse of renditions that already exist, and deterministic queue job IDs so duplicate enqueues are dropped. This is deferred (§16).
 
 ---
 
@@ -148,11 +153,13 @@ Using BullMQ for both would mean hand-building the durable-event semantics Rabbi
 
 ## 12. Deployment Topology: Free-Tier-Driven, With the Trade-offs Stated Up Front
 
-**Final architecture:** frontend → Vercel (custom domain `streamforge.ayushrana.me`). Postgres → Neon. Redis → Upstash. RabbitMQ → CloudAMQP. `server` + `worker` + `notification-service` → bundled into **one** Render free Web Service container.
+**Final architecture:** frontend → Vercel (custom domain `streamforge.ayushrana.me`). Postgres → Neon. Redis → Redis Cloud. RabbitMQ → CloudAMQP. `server` + `worker` + `notification-service` → bundled into **one** Render free Web Service container.
 
 **Why bundle three services into one container — isn't that a step backward from the whole point of splitting them?** Render's free tier has no "Background Worker" service type at all (that tier starts at $7+/mo per service), and a genuinely separate `worker`/`notification-service` deployment would have required paying for services this project isn't monetized to justify. Bundling them into one container's `start.sh` — which runs `worker` and `notification-service` backgrounded with `&`, and `server` in the foreground last (so it controls the container's lifecycle for Render's healthcheck) — is an explicit, cost-driven compromise. The existing `docker-compose.yml` already demonstrates the "real" architecture (genuinely separate services, each independently scalable), which is what would run in an actual production deployment with a real budget. The code's architecture and the demo's deployment topology are two different things, and the gap between them is a budget constraint, not a design misunderstanding.
 
 **Known accepted limitation of the bundled container:** a backgrounded process (`worker` or `notification-service`) crashing shortly after start is invisible both to `start.sh`'s `set -e` and to Render's healthcheck (which only observes `server`). A proper process supervisor (e.g. `pm2`, `supervisord`) would be the correct fix; judged not worth the added complexity for a free-tier demo deployment where this failure mode has not been observed in practice.
+
+**Redis provider change:** the demo originally used Upstash's free tier, which caps total commands (500K per month). BullMQ workers poll Redis continuously even when no jobs are queued, which most likely drove the usage on an always-on stack; when the quota ran out, Redis rejected commands and the deployment went down. The deployment moved to Redis Cloud's free plan, which limits throughput and size instead of total commands (30 MB, 100 ops/sec, 30 connections). Its eviction policy must be `noeviction`, since BullMQ cannot tolerate keys being silently dropped. Job retention (§5) keeps memory use bounded.
 
 **Cold starts:** Render's free tier spins the container down after 15 minutes without inbound traffic. A dedicated, dependency-free `/health` endpoint (no DB/Redis/RabbitMQ calls — just confirms the Node process is alive) is pinged on a schedule to keep the container warm, specifically to avoid a 30–60s cold-start delay during a live demo.
 
@@ -195,6 +202,7 @@ These are real, previously-shipped bugs, each with a concrete lesson:
 4. **`VideoDetail.tsx` polling race (deployment):** frontend derived "done" from individual rendition statuses instead of `Video.status` directly, creating a real window where renditions showed `READY` before the backend's separate `finalizeVideoStatusIfDone()` write had flipped the video-level status — playback wouldn't appear until the page was manually refreshed. Direct consequence of the §7 design — fixed by having the frontend check the single source of truth (`video.status`) instead of re-deriving it client-side.
 5. **R2 CORS (Phase 6):** the R2 bucket needed its own explicit CORS policy for browser uploads to work at all — another browser-enforced behavior invisible to `curl`-based testing, reinforcing why real end-to-end browser verification (not just API testing) mattered before calling any phase complete.
 6. **Unbounded FFmpeg threading under worker concurrency (Phase 8):** see §14 — default `libx264` thread usage made concurrent jobs slow each other down; fixed with an explicit `-threads` cap.
+7. **Redis command quota exhausted (deployment):** a command-metered free Redis tier ran out because idle BullMQ workers keep polling, and the whole backend went down with it. Fixed by moving to a Redis plan without a command quota, and by bounding queue memory with job retention (§5, §12). Lesson: a queue's idle cost matters as much as its load cost on metered infrastructure.
 
 ---
 
@@ -202,6 +210,7 @@ These are real, previously-shipped bugs, each with a concrete lesson:
 
 - **API key endpoints** — schema table (`api_keys`) exists and is migrated, but the endpoints were never built. Deferred as low-priority since the core architecture doesn't depend on it.
 - **Video deletion / cleanup logic** — not yet built.
+- **Automatic completion of uploads whose `/complete` call was lost** — currently such videos stay `PENDING` (§8). The planned fix is a shared idempotent finalize function called by both the endpoint and the sweep, plus a retry in the frontend.
 - **Load testing against the deployed stack** — local load tests are done (§14); the free-tier deployment's platform limits (shared CPU, bundled container) would dominate any results there, so they wouldn't say much about the architecture.
 - **Video-level access control beyond auth** — playback URLs are public-bucket-served (§4), not per-request authorized; acceptable given the project's actual threat model (a portfolio demo, not a platform holding sensitive user content).
 - **Test coverage for `worker`'s job-processing flow, `notification-service`, and reconnect logic** (§13).

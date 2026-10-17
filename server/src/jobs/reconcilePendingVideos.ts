@@ -28,9 +28,6 @@ async function reconcilePendingVideos(): Promise<void> {
         `[reconcile] Video ${video.id} has a file in R2 but was never completed — left for manual review`,
       );
     } catch (err) {
-      console.log(
-        `[reconcile] Video ${video.id} has no file in R2 — deleting orphaned row`,
-      );
       const e = err as {
         name?: string;
         $metadata?: { httpStatusCode?: number };
@@ -39,7 +36,9 @@ async function reconcilePendingVideos(): Promise<void> {
         console.error("[reconcile] R2 check failed, skipping:", err);
         continue;
       }
-      // ...existing delete logic stays below
+      console.log(
+        `[reconcile] Video ${video.id} has no file in R2 — deleting orphaned row`,
+      );
       await prisma.video.delete({ where: { id: video.id } });
     }
   }
