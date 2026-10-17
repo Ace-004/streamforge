@@ -18,10 +18,28 @@ async function reconcilePendingVideos(): Promise<void> {
 
   for (const video of staleVideos) {
     try {
-      await r2.send(new HeadObjectCommand({ Bucket: R2_BUCKET_NAME, Key: video.originalUrl }));
-      console.log(`[reconcile] Video ${video.id} has a file in R2 but was never completed — left for manual review`);
-    } catch {
-      console.log(`[reconcile] Video ${video.id} has no file in R2 — deleting orphaned row`);
+      await r2.send(
+        new HeadObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: video.originalUrl,
+        }),
+      );
+      console.log(
+        `[reconcile] Video ${video.id} has a file in R2 but was never completed — left for manual review`,
+      );
+    } catch (err) {
+      console.log(
+        `[reconcile] Video ${video.id} has no file in R2 — deleting orphaned row`,
+      );
+      const e = err as {
+        name?: string;
+        $metadata?: { httpStatusCode?: number };
+      };
+      if (e?.name !== "NotFound" && e?.$metadata?.httpStatusCode !== 404) {
+        console.error("[reconcile] R2 check failed, skipping:", err);
+        continue;
+      }
+      // ...existing delete logic stays below
       await prisma.video.delete({ where: { id: video.id } });
     }
   }
