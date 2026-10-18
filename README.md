@@ -18,7 +18,7 @@ Built to be architecturally honest: every service, queue, and trade-off exists f
 - 📡 **Live progress** — hand-rolled WebSocket layer relaying real FFmpeg progress from `worker` to the browser (local/Docker; polling fallback on the free-tier demo)
 - 📬 **Event-driven notifications** — RabbitMQ events, batched (one email per video, not per rendition) via Resend
 - ▶️ **Adaptive playback** — `hls.js`-powered player with automatic bitrate switching
-- 🔁 **Self-healing** — a periodic reconciliation sweep catches uploads that never completed their handshake
+- 🔁 **Reconciliation sweep** — removes orphaned PENDING videos whose upload never reached storage
 - ✅ **Tested** — integration tests against real (isolated) Postgres/Redis, not mocks
 - 📈 **Load-tested** — worker concurrency and FFmpeg thread usage tuned from measured data (see [Performance](#performance))
 
@@ -193,6 +193,7 @@ Documented deliberately, not hidden — see [`docs/ARCHITECTURE.md`](docs/ARCHIT
 - Test coverage focuses on auth, the retry endpoint, and progress-calculation logic; `worker`'s full job-processing pipeline, `notification-service`, and reconnect logic are untested.
 - Load tests were run locally with a short test clip, not against the deployed stack.
 - API key endpoints (schema exists) and video deletion are not yet implemented.
+- A video whose completion call is lost after a successful upload stays PENDING.
 
 ---
 

@@ -37,7 +37,7 @@ For every technology used: **what it's used for here**, **why it was picked over
 ### BullMQ
 - **Used for:** `server → worker` transcode job dispatch — one job per rendition (ARCHITECTURE §3, §5), plus the periodic reconciliation sweep on its own queue.
 - **Why over alternatives (raw Redis lists, Bull v3, Agenda/Bee-Queue):** BullMQ is the actively maintained successor to Bull, gives per-job progress reporting, configurable retry/backoff, and a queryable failed set out of the box — all needed here, not incidental features.
-- **Internally:** adding a job writes its data and pushes it onto the queue's waiting structure; a `Worker` instance fetches jobs using blocking Redis operations, and moving a job to the active state is done atomically inside Redis (via Lua scripts) together with a lock on that job, so two workers can't process the same job concurrently. If a worker dies and stops renewing its lock, the job is detected as stalled and can be picked up again. On failure, BullMQ re-queues the job with the configured backoff up to the configured attempt count; once attempts are exhausted, the job moves to the `failed` set and is retained (queryable by ID) rather than deleted. That retained set serves as a dead-letter store, but BullMQ doesn't forward those jobs to a separate DLQ automatically (see ARCHITECTURE §5).
+- **Internally:** adding a job writes its data and pushes it onto the queue's waiting structure; a `Worker` instance fetches jobs using blocking Redis operations, and moving a job to the active state is done atomically inside Redis (via Lua scripts) together with a lock on that job, so two workers can't process the same job concurrently. If a worker dies and stops renewing its lock, the job is detected as stalled and can be picked up again. On failure, BullMQ re-queues the job with the configured backoff up to the configured attempt count; once attempts are exhausted, the job moves to the `failed` set. By default it would stay there, queryable by ID, but this project sets `removeOnFail: true`, so it is deleted and the durable failure record is the `FAILED` status in Postgres. BullMQ does not forward exhausted jobs to a separate dead-letter queue automatically (see ARCHITECTURE §5).
 
 ---
 
@@ -128,7 +128,7 @@ For every technology used: **what it's used for here**, **why it was picked over
 | Node.js + TS | Backend runtime | Shared language w/ frontend, compile-time safety |
 | PostgreSQL + Prisma | System of record | Relational integrity, transactional guarantees |
 | Redis (Redis Cloud) | Queue backend | Required by BullMQ; its event stream feeds live progress |
-| BullMQ | Transcode job queue | Built-in progress/retry/backoff and a retained failed set |
+| BullMQ | Transcode job queue | Built-in progress reporting, retries with backoff, and configurable job retention |
 | RabbitMQ (CloudAMQP) | Cross-service events | Durable queue, ack-based at-least-once delivery |
 | FFmpeg / ffprobe | Video transcode & probing | Full control over flags + real progress parsing |
 | Cloudflare R2 | Object storage | S3-compatible, no egress fees |
